@@ -486,7 +486,7 @@ private fun EmptyState() {
             Text("No playlists yet", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface)
             Spacer(Modifier.height(8.dp))
             Text(
-                "Head to Generate to create your first mix.",
+                "Create a new playlist or import public playlists from Spotify, Apple Music, or YouTube Music",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,

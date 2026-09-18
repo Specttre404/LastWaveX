@@ -480,7 +480,7 @@ fun SettingsScreen(
                                     iconContainer = MaterialTheme.colorScheme.tertiaryContainer,
                                     iconTint = MaterialTheme.colorScheme.onTertiaryContainer,
                                     title = "Import from YouTube Music",
-                                    subtitle = "Search, browse, or paste playlist links & IDs",
+                                    subtitle = "Import playlists directly from YouTube Music",
                                     onClick = onOpenYouTubeImport,
                                     position = position,
                                 )
@@ -981,7 +981,7 @@ fun SettingsScreen(
                                 iconContainer = MaterialTheme.colorScheme.primaryContainer,
                                 iconTint = MaterialTheme.colorScheme.onPrimaryContainer,
                                 title = "Import from Spotify / Apple Music",
-                                subtitle = "Paste a public playlist link",
+                                subtitle = "Import public playlist links from Spotify or Apple Music",
                                 onClick = onOpenExternalImport,
                                 position = position,
                             )

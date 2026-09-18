@@ -413,15 +413,30 @@ fun SearchScreen(
                                 com.lastwave.app.ui.common.ExpressiveLoadingIndicator()
                             }
                             SearchStatus.EMPTY -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    modifier = Modifier.padding(horizontal = 32.dp),
+                                ) {
                                     Icon(
                                         Icons.Filled.Search,
                                         contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(44.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                        modifier = Modifier.size(48.dp),
                                     )
-                                    Spacer(Modifier.height(10.dp))
-                                    Text("No results found for \"${state.query}\"", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Spacer(Modifier.height(12.dp))
+                                    Text(
+                                        "No results found for \"${state.query}\"",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                    )
+                                    Spacer(Modifier.height(6.dp))
+                                    Text(
+                                        "Check the spelling or try searching for another artist, song, or album",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                    )
                                 }
                             }
                             SearchStatus.RESULTS -> {
