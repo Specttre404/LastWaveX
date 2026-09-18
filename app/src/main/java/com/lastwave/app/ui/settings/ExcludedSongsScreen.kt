@@ -121,7 +121,7 @@ fun ExcludedSongsScreen(
                         fontWeight = FontWeight.Bold,
                     )
                     Text(
-                        "Songs you mark “Don't recommend again” will appear here. You can restore each one separately.",
+                        "Songs you exclude from smart mixes and recommendations will appear here. You can allow them again at any time.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,

@@ -941,9 +941,9 @@ fun SettingsScreen(
                                     iconTint = if (isIgnored) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onErrorContainer,
                                     title = stringResource(R.string.settings_battery_title),
                                     subtitle = if (isIgnored) {
-                                        "Unrestricted \u2022 Protected against Samsung & OEM background killing"
+                                        "Unrestricted — background playback and scrobbling will run without interruption"
                                     } else {
-                                        "Restricted \u2022 Tap to exempt from Samsung Device Care / sleeping apps"
+                                        "Optimized — Android may restrict playback when screen is locked"
                                     },
                                     onClick = { BatteryOptimizationHelper.requestIgnoreBatteryOptimizations(context) },
                                     position = position,
@@ -957,9 +957,9 @@ fun SettingsScreen(
                                     iconTint = if (isIgnored) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onErrorContainer,
                                     title = stringResource(R.string.settings_battery_title),
                                     subtitle = if (isIgnored) {
-                                        "Unrestricted \u2022 Protected against Samsung & OEM background killing"
+                                        "Unrestricted — background playback and scrobbling will run without interruption"
                                     } else {
-                                        "Restricted \u2022 Tap to exempt from Samsung Device Care / sleeping apps"
+                                        "Optimized — Android may restrict playback when screen is locked"
                                     },
                                     onClick = { BatteryOptimizationHelper.requestIgnoreBatteryOptimizations(context) },
                                     position = position,
