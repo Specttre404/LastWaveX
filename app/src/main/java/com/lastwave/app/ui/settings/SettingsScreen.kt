@@ -812,7 +812,7 @@ fun SettingsScreen(
                                 iconTint = MaterialTheme.colorScheme.onPrimaryContainer,
                                 title = stringResource(R.string.settings_studio_clarity),
                                 subtitle = if (misc.isStudioMasterClarityEnabled) {
-                                    "Crystal-clear open sound \u2022 airy detail \u2022 deep clean separation"
+                                    "Restores high-frequency detail and enhances audio spatial clarity"
                                 } else {
                                     "Original unshaped output"
                                 },
@@ -872,7 +872,7 @@ fun SettingsScreen(
                                 iconTint = MaterialTheme.colorScheme.onPrimaryContainer,
                                 title = stringResource(R.string.settings_bit_perfect),
                                 subtitle = if (misc.isBitPerfectEnabled) {
-                                    stringResource(R.string.settings_bit_perfect_on_detail)
+                                    "Routes raw audio directly to external USB DACs without Android resampler processing"
                                 } else {
                                     stringResource(R.string.settings_bit_perfect_off_detail)
                                 },
