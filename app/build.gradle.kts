@@ -45,7 +45,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.lastwave.app"
+        applicationId = "com.specttre404.lastwavex"
         minSdk = (project.findProperty("minSdk") as? String)?.toIntOrNull() ?: 29
         targetSdk = 35
         versionCode = 17
