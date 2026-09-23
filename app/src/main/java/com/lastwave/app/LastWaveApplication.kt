@@ -8,7 +8,8 @@ import coil.ImageLoaderFactory
 import coil.disk.DiskCache
 import coil.memory.MemoryCache
 import com.lastwave.app.data.repository.ThemeRepository
-import com.lastwave.app.widget.WidgetUpdater
+import com.google.firebase.FirebaseApp
+import com.google.firebase.appcheck.FirebaseAppCheck
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CancellationException
@@ -50,6 +51,13 @@ class LastWaveApplication : Application(), ImageLoaderFactory {
         runCatching { appLocaleManager.get().start() }
         runCatching { com.lastwave.app.playback.PlaybackDiagnostics.install(this) }
         runCatching { com.lastwave.app.data.music.potoken.BotGuardTokenGenerator.initialize(this) }
+        runCatching {
+            FirebaseApp.initializeApp(this)
+            val providerFactory = com.lastwave.app.util.AppCheckHelper.createProviderFactory(this)
+            FirebaseAppCheck.getInstance().installAppCheckProviderFactory(providerFactory)
+        }.onFailure { error ->
+            android.util.Log.w("LastWaveStartup", "Firebase / App Check initialization skipped", error)
+        }
         applicationScope.launch(Dispatchers.IO) {
             delay(OPTIONAL_STARTUP_DELAY_MS)
             // A process kill can bypass TrackDownloadManager's finally block
@@ -93,26 +101,6 @@ class LastWaveApplication : Application(), ImageLoaderFactory {
             delay(OPTIONAL_STARTUP_DELAY_MS)
             runCatching { trackDownloadManager.get().syncDownloadsFromStorage() }
                 .onFailure { android.util.Log.e("LastWaveStartup", "Download sync startup failed", it) }
-        }
-        // A widget is a separate RemoteViews surface, so it needs an explicit
-        // refresh whenever LastWave's live theme changes. The widget's palette
-        // only consumes primary/onPrimary (every other role is fixed), so
-        // dedupe on those — otherwise ANY DataStore settings change (pins,
-        // toggles, font) rebuilt every placed widget.
-        applicationScope.launch(Dispatchers.IO) {
-            delay(OPTIONAL_STARTUP_DELAY_MS)
-            try {
-                themeRepository.get().uiState
-                    .map { it.colorScheme.primary to it.colorScheme.onPrimary }
-                    .distinctUntilChanged()
-                    .collect {
-                        WidgetUpdater.refreshTheme(this@LastWaveApplication)
-                    }
-            } catch (cancellation: CancellationException) {
-                throw cancellation
-            } catch (error: Throwable) {
-                android.util.Log.e("LastWaveStartup", "Widget theme observer disabled", error)
-            }
         }
     }
 

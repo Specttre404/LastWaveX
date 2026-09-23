@@ -1,5 +1,6 @@
 package com.lastwave.app.ui.shell
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
@@ -144,14 +145,12 @@ fun MainShell(
     onOpenPlaylist: (Long) -> Unit = {},
     onOpenGenerator: () -> Unit = {},
     onOpenNewReleases: () -> Unit = {},
+    onOpenCharts: () -> Unit = {},
     mainShellViewModel: MainShellViewModel = hiltViewModel(),
 ) {
     val tabs = MainTab.entries
     val pagerState = rememberPagerState(pageCount = { tabs.size })
     val scope = rememberCoroutineScope()
-    val context = LocalContext.current
-    val updateInfo by mainShellViewModel.updateInfo.collectAsStateWithLifecycle()
-    val showUpdateBanner = updateInfo.isUpdateAvailable && !updateInfo.isDismissed
     val navigationBackdrop = if (isLiquidGlassBackdropSupported()) rememberLayerBackdrop() else null
 
     Box(Modifier.fillMaxSize()) {
@@ -177,6 +176,7 @@ fun MainShell(
                         onOpenFriends = onOpenFriends,
                         onOpenFriendProfile = onOpenFriendProfile,
                         onOpenNewReleases = onOpenNewReleases,
+                        onOpenCharts = onOpenCharts,
                     )
                     MainTab.STATS -> HomeScreen(
                         onOpenSettings = onOpenSettings,
@@ -188,25 +188,6 @@ fun MainShell(
                     MainTab.PLAYLISTS -> PlaylistScreen(onOpenPlaylist = onOpenPlaylist)
                 }
             }
-        }
-
-        // App update prompt banner (only shown on app open when an update is available and not dismissed)
-        AnimatedVisibility(
-            visible = showUpdateBanner,
-            enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
-            exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut(),
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .adaptiveContentWidth(maxWidth = 600.dp)
-                .statusBarsPadding()
-                .padding(horizontal = 16.dp, vertical = 8.dp)
-                .zIndex(10f),
-        ) {
-            UpdatePromptCard(
-                version = updateInfo.latestVersion,
-                onUpdate = { mainShellViewModel.openUpdate(context) },
-                onDismiss = { mainShellViewModel.dismissUpdate(updateInfo.latestVersion) },
-            )
         }
 
         FloatingNavBar(
@@ -221,73 +202,6 @@ fun MainShell(
 }
 
 @Composable
-private fun UpdatePromptCard(
-    version: String,
-    onUpdate: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    Surface(
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.primaryContainer,
-        shadowElevation = 8.dp,
-        tonalElevation = 6.dp,
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Row(
-            modifier = Modifier.padding(start = 16.dp, end = 10.dp, top = 10.dp, bottom = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Icon(
-                imageVector = Icons.Filled.CloudDownload,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = Modifier.size(24.dp),
-            )
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = androidx.compose.ui.res.stringResource(com.lastwave.app.R.string.update_available),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                )
-                Text(
-                    text = androidx.compose.ui.res.stringResource(com.lastwave.app.R.string.update_ready_to_install, version),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f),
-                )
-            }
-            Surface(
-                shape = RoundedCornerShape(14.dp),
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(14.dp))
-                    .clickable(onClick = onUpdate),
-            ) {
-                Text(
-                    text = androidx.compose.ui.res.stringResource(com.lastwave.app.R.string.update),
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                )
-            }
-            IconButton(
-                onClick = onDismiss,
-                modifier = Modifier.size(28.dp),
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Close,
-                    contentDescription = androidx.compose.ui.res.stringResource(com.lastwave.app.R.string.dismiss_update),
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
-                    modifier = Modifier.size(18.dp),
-                )
-            }
-        }
-    }
-}
-
-@Composable
 private fun FloatingNavBar(
     backdrop: LayerBackdrop?,
     tabs: List<MainTab>,
@@ -297,6 +211,10 @@ private fun FloatingNavBar(
     modifier: Modifier = Modifier,
 ) {
     val liquidGlass = LocalLiquidGlass.current
+    val effectiveDockShape = if (liquidGlass) DockShape else CircleShape
+    val navBarHeight = if (liquidGlass) 60.dp else 56.dp
+    val navHorizontalPadding = if (liquidGlass) 8.dp else 10.dp
+
     Box(
         modifier = modifier
             .windowInsetsPadding(
@@ -311,14 +229,19 @@ private fun FloatingNavBar(
             horizontalArrangement = Arrangement.Center,
         ) {
             Surface(
-                shape = DockShape,
-                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = if (liquidGlass) 0.80f else 1f),
+                shape = effectiveDockShape,
+                color = if (liquidGlass) MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.80f)
+                        else MaterialTheme.colorScheme.surfaceContainerHighest,
+                border = if (liquidGlass) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
                 tonalElevation = if (liquidGlass) 0.dp else 6.dp,
-                shadowElevation = if (liquidGlass) 0.dp else 12.dp,
-                modifier = Modifier.liquidGlassChrome(DockShape, liquidGlass, LiquidGlassPreset.BottomNavigation, backdrop),
+                shadowElevation = if (liquidGlass) 0.dp else 8.dp,
+                modifier = Modifier
+                    .height(navBarHeight)
+                    .clip(effectiveDockShape)
+                    .liquidGlassChrome(effectiveDockShape, liquidGlass, LiquidGlassPreset.BottomNavigation, backdrop),
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                    modifier = Modifier.padding(horizontal = navHorizontalPadding, vertical = 4.dp),
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -333,40 +256,6 @@ private fun FloatingNavBar(
                     }
                 }
             }
-
-            // Satellite Companion Generator Button (only visible on Playlists tab)
-            AnimatedVisibility(
-                visible = selectedIndex == tabs.indexOf(MainTab.PLAYLISTS),
-                enter = fadeIn(animationSpec = tween(180)) +
-                    scaleIn(initialScale = 0.35f, animationSpec = navSpring()) +
-                    expandHorizontally(animationSpec = navSpring(), expandFrom = Alignment.End),
-                exit = fadeOut(animationSpec = tween(120)) +
-                    scaleOut(targetScale = 0.35f, animationSpec = navSpring()) +
-                    shrinkHorizontally(animationSpec = navSpring(), shrinkTowards = Alignment.End),
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Spacer(Modifier.width(10.dp))
-                    Surface(
-                        shape = CircleShape,
-                        color = liquidGlassContainerColor(MaterialTheme.colorScheme.primaryContainer, backdrop = backdrop),
-                        shadowElevation = if (liquidGlass) 0.dp else 10.dp,
-                        tonalElevation = if (liquidGlass) 0.dp else 4.dp,
-                        modifier = Modifier
-                            .size(56.dp)
-                            .liquidGlassChrome(CircleShape, liquidGlass, LiquidGlassPreset.FloatingControls, backdrop)
-                            .clickable(onClick = onOpenGenerator),
-                    ) {
-                        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                            Icon(
-                                imageVector = Icons.Filled.AutoAwesome,
-                                contentDescription = androidx.compose.ui.res.stringResource(com.lastwave.app.R.string.nav_create_playlist),
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.size(24.dp),
-                            )
-                        }
-                    }
-                }
-            }
         }
     }
 }
@@ -378,9 +267,10 @@ private fun FloatingNavItem(
     selected: Boolean,
     onClick: () -> Unit,
 ) {
+    val liquidGlass = LocalLiquidGlass.current
     val backgroundColor by animateColorAsState(
         targetValue = if (selected) MaterialTheme.colorScheme.primaryContainer.copy(
-            alpha = if (LocalLiquidGlass.current) 0.28f else 1f,
+            alpha = if (liquidGlass) 0.28f else 1f,
         ) else Color.Transparent,
         animationSpec = navSpring(),
         label = "navItemBackground",
@@ -391,50 +281,84 @@ private fun FloatingNavItem(
         label = "navItemContent",
     )
 
-    Surface(
-        onClick = onClick,
-        shape = PillShape,
-        color = backgroundColor,
-        modifier = Modifier
-            .height(48.dp)
-            .animateContentSize(animationSpec = navSpring()),
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center,
+    if (!liquidGlass) {
+        // M3 Fixed-Width Stadium Tab Item
+        Surface(
+            onClick = onClick,
+            shape = PillShape,
+            color = backgroundColor,
             modifier = Modifier
-                .padding(horizontal = if (selected) 18.dp else 12.dp)
+                .width(76.dp)
                 .height(48.dp),
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = label,
-                tint = contentColor,
-                modifier = Modifier.size(24.dp),
-            )
-            AnimatedVisibility(
-                visible = selected,
-                enter = fadeIn(animationSpec = navSpring()) + expandHorizontally(
-                    animationSpec = navSpring(),
-                    expandFrom = Alignment.Start,
-                ),
-                exit = fadeOut(animationSpec = tween(90)) + shrinkHorizontally(
-                    animationSpec = navSpring(),
-                    shrinkTowards = Alignment.Start,
-                ),
+            Column(
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.fillMaxSize(),
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(start = 8.dp),
+                Icon(
+                    imageVector = icon,
+                    contentDescription = label,
+                    tint = contentColor,
+                    modifier = Modifier.size(20.dp),
+                )
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                    color = contentColor,
+                    maxLines = 1,
+                    softWrap = false,
+                )
+            }
+        }
+    } else {
+        // iOS Liquid Glass Expanding Tab Item
+        Surface(
+            onClick = onClick,
+            shape = PillShape,
+            color = backgroundColor,
+            modifier = Modifier
+                .height(48.dp)
+                .animateContentSize(animationSpec = navSpring()),
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier
+                    .padding(horizontal = if (selected) 18.dp else 12.dp)
+                    .height(48.dp),
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = label,
+                    tint = contentColor,
+                    modifier = Modifier.size(24.dp),
+                )
+                AnimatedVisibility(
+                    visible = selected,
+                    enter = fadeIn(animationSpec = navSpring()) + expandHorizontally(
+                        animationSpec = navSpring(),
+                        expandFrom = Alignment.Start,
+                    ),
+                    exit = fadeOut(animationSpec = tween(90)) + shrinkHorizontally(
+                        animationSpec = navSpring(),
+                        shrinkTowards = Alignment.Start,
+                    ),
                 ) {
-                    Text(
-                        text = label,
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.SemiBold,
-                        color = contentColor,
-                        maxLines = 1,
-                        softWrap = false,
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(start = 8.dp),
+                    ) {
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            color = contentColor,
+                            maxLines = 1,
+                            softWrap = false,
+                        )
+                    }
                 }
             }
         }

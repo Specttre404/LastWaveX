@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">LastWave</string>
-    <string name="widget_name">Lecteur LastWave</string>
-    <string name="widget_description">Pochette, détails du morceau et contrôles de lecture pour toutes les apps média</string>
+    <string name="app_name">LASTWAVEX</string>
 
     <string name="nav_feed">Fil</string>
     <string name="nav_stats">Statistiques</string>

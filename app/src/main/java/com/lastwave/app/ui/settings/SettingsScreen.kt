@@ -35,6 +35,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -68,10 +72,12 @@ import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.RestartAlt
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.HighQuality
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.History
@@ -94,6 +100,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
+import androidx.compose.material3.ScrollableTabRow
+import androidx.compose.material3.Tab
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.material3.Surface
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
@@ -273,8 +282,8 @@ fun SettingsScreen(
     val ytAccountPlaylists by viewModel.ytAccountPlaylists.collectAsStateWithLifecycle()
     val hiddenYtLibraryPlaylistIds by viewModel.hiddenYtLibraryPlaylistIds.collectAsStateWithLifecycle()
     val eq by viewModel.equalizer.collectAsStateWithLifecycle()
-    val updateInfo by viewModel.updateInfo.collectAsStateWithLifecycle()
     val isLastFmConnected by viewModel.isLastFmConnected.collectAsStateWithLifecycle()
+    val updateInfo by viewModel.updateInfo.collectAsStateWithLifecycle()
     val hasApiKey by viewModel.hasApiKey.collectAsStateWithLifecycle()
     val lastFmAuthUrl by viewModel.lastFmAuthUrl.collectAsStateWithLifecycle()
     val lastFmConnecting by viewModel.lastFmConnecting.collectAsStateWithLifecycle()
@@ -355,16 +364,53 @@ fun SettingsScreen(
         ) {
         ExpressiveHeader(title = stringResource(R.string.settings), onBack = onBack)
 
-        LazyColumn(
-            contentPadding = PaddingValues(
-                start = 16.dp,
-                end = 16.dp,
-                top = 22.dp,
-                bottom = 32.dp + LocalMiniPlayerScrollClearance.current + safeDrawingBottomPadding()
-            ),
-            verticalArrangement = Arrangement.spacedBy(28.dp),
-            modifier = Modifier.safeHorizontalContentPadding(),
+        val categoryTitles = listOf("Accounts", "Audio & Playback", "Visuals & Themes", "Data & About")
+        val pagerState = rememberPagerState(pageCount = { categoryTitles.size })
+        val scope = rememberCoroutineScope()
+
+        ScrollableTabRow(
+            selectedTabIndex = pagerState.currentPage,
+            edgePadding = 16.dp,
+            containerColor = Color.Transparent,
+            contentColor = MaterialTheme.colorScheme.primary,
+            divider = {},
+            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         ) {
+            categoryTitles.forEachIndexed { index, title ->
+                val selected = pagerState.currentPage == index
+                Tab(
+                    selected = selected,
+                    onClick = {
+                        scope.launch { pagerState.animateScrollToPage(index) }
+                    },
+                    text = {
+                        Text(
+                            title,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                        )
+                    },
+                )
+            }
+        }
+
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize(),
+        ) { page ->
+            LazyColumn(
+                contentPadding = PaddingValues(
+                    start = 16.dp,
+                    end = 16.dp,
+                    top = 16.dp,
+                    bottom = 32.dp + LocalMiniPlayerScrollClearance.current + safeDrawingBottomPadding()
+                ),
+                verticalArrangement = Arrangement.spacedBy(28.dp),
+                modifier = Modifier.fillMaxSize().safeHorizontalContentPadding(),
+            ) {
+
+
+            if (page == 0) {
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     SectionLabel("Integrations / Scrobbling")
@@ -657,6 +703,9 @@ fun SettingsScreen(
                 }
             }
 
+            }
+
+            if (page == 2) {
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     SectionLabel(stringResource(R.string.settings_section_appearance))
@@ -824,7 +873,9 @@ fun SettingsScreen(
                     }
                 }
             }
+            }
 
+            if (page == 1) {
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     SectionLabel(stringResource(R.string.settings_section_audio))
@@ -971,6 +1022,9 @@ fun SettingsScreen(
             }
 
 
+            }
+
+            if (page == 3) {
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     SectionLabel(stringResource(R.string.settings_section_imports))
@@ -1053,7 +1107,7 @@ fun SettingsScreen(
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     SectionLabel(stringResource(R.string.settings_section_data))
-                    SettingsGroup(rowCount = 2) { index, position ->
+                    SettingsGroup(rowCount = 3) { index, position ->
                         when (index) {
                             0 -> SettingsActionCard(
                                 icon = Icons.Filled.RestartAlt,
@@ -1065,6 +1119,15 @@ fun SettingsScreen(
                                 position = position,
                             )
                             1 -> SettingsActionCard(
+                                icon = Icons.Filled.History,
+                                iconContainer = MaterialTheme.colorScheme.tertiaryContainer,
+                                iconTint = MaterialTheme.colorScheme.onTertiaryContainer,
+                                title = stringResource(R.string.settings_reset_stats),
+                                subtitle = stringResource(R.string.settings_reset_stats_sub),
+                                onClick = viewModel::requestResetStats,
+                                position = position,
+                            )
+                            2 -> SettingsActionCard(
                                 icon = Icons.Filled.Delete,
                                 iconContainer = MaterialTheme.colorScheme.errorContainer,
                                 iconTint = MaterialTheme.colorScheme.onErrorContainer,
@@ -1119,27 +1182,34 @@ fun SettingsScreen(
                     SettingsGroup(rowCount = 3) { index, position ->
                         when (index) {
                             0 -> SettingsActionCard(
-                                icon = Icons.AutoMirrored.Filled.Send,
+                                icon = Icons.Filled.Refresh,
                                 iconContainer = MaterialTheme.colorScheme.primaryContainer,
                                 iconTint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                title = stringResource(R.string.settings_updates_support),
-                                subtitle = "Join @clashprojects on Telegram",
+                                title = "Check for Updates",
+                                subtitle = when {
+                                    updateInfo.isChecking -> "Checking GitHub for updates..."
+                                    !updateInfo.message.isNullOrBlank() -> updateInfo.message.orEmpty()
+                                    else -> "Check GitHub releases for updates"
+                                },
                                 onClick = {
-                                    if (!openTelegramChannel(context, "clashprojects")) {
-                                        viewModel.showToast("No compatible browser or Telegram app is available")
+                                    if (updateInfo.isUpdateAvailable) {
+                                        viewModel.openUpdate(context)
+                                    } else {
+                                        viewModel.checkForUpdates()
                                     }
                                 },
                                 position = position,
                             )
                             1 -> SettingsActionCard(
-                                icon = Icons.Filled.AutoAwesome,
-                                iconContainer = MaterialTheme.colorScheme.tertiaryContainer,
-                                iconTint = MaterialTheme.colorScheme.onTertiaryContainer,
-                                title = stringResource(R.string.settings_more_from_us),
-                                subtitle = "Join @MaterialYouApp on Telegram",
+                                icon = Icons.Filled.Code,
+                                iconContainer = MaterialTheme.colorScheme.primaryContainer,
+                                iconTint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                title = stringResource(R.string.settings_source_code),
+                                subtitle = "github.com/specttre404/LastWaveX",
                                 onClick = {
-                                    if (!openTelegramChannel(context, "MaterialYouApp")) {
-                                        viewModel.showToast("No compatible browser or Telegram app is available")
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/specttre404/LastWaveX"))
+                                    if (!startActivitySafely(context, intent)) {
+                                        viewModel.showToast("No browser is available")
                                     }
                                 },
                                 position = position,
@@ -1157,111 +1227,28 @@ fun SettingsScreen(
                     }
                     Spacer(Modifier.height(4.dp))
 
-                    // Prominent Update Available Banner Card (if newer version detected)
-                    if (updateInfo.isUpdateAvailable) {
-                        Surface(
-                            shape = CardOuterShape,
-                            color = MaterialTheme.colorScheme.primaryContainer,
-                            shadowElevation = 3.dp,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(CardOuterShape)
-                                .clickable { viewModel.openUpdate(context) },
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(46.dp)
-                                        .background(MaterialTheme.colorScheme.primary, CircleShape),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Filled.CloudDownload,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onPrimary,
-                                        modifier = Modifier.size(24.dp),
-                                    )
-                                }
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "Update Available!",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    )
-                                    Text(
-                                        text = "Version ${updateInfo.latestVersion} is ready to install",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f),
-                                    )
-                                }
-                                Surface(
-                                    shape = RoundedCornerShape(14.dp),
-                                    color = MaterialTheme.colorScheme.primary,
-                                ) {
-                                    Text(
-                                        text = "Update",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onPrimary,
-                                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                                    )
-                                }
-                            }
-                        }
-                        Spacer(Modifier.height(8.dp))
-                    }
-
                     AboutCard(versionName = appVersionName(context))
-
-                    SettingsActionCard(
-                        icon = Icons.Filled.CloudDownload,
-                        iconContainer = if (updateInfo.isUpdateAvailable) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer,
-                        iconTint = if (updateInfo.isUpdateAvailable) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSecondaryContainer,
-                        title = if (updateInfo.isUpdateAvailable) "Update Ready (${updateInfo.latestVersion})" else "Check for Updates",
-                        subtitle = when {
-                            updateInfo.isChecking -> "Checking GitHub releases..."
-                            updateInfo.isUpdateAvailable -> "Tap to download new version"
-                            !updateInfo.message.isNullOrBlank() -> updateInfo.message.orEmpty()
-                            else -> "Current version: ${appVersionName(context)}"
-                        },
-                        onClick = {
-                            if (updateInfo.isUpdateAvailable) {
-                                viewModel.openUpdate(context)
-                            } else {
-                                viewModel.checkForUpdates()
-                            }
-                        },
-                    )
-
-                    SettingsActionCard(
-                        icon = Icons.Filled.Code,
-                        iconContainer = MaterialTheme.colorScheme.secondaryContainer,
-                        iconTint = MaterialTheme.colorScheme.onSecondaryContainer,
-                                title = stringResource(R.string.settings_source_code),
-                        subtitle = "github.com/Clash-Projects/LastWave-native",
-                        onClick = {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/Clash-Projects/LastWave-native"))
-                            if (!startActivitySafely(context, intent)) {
-                                viewModel.showToast("No browser is available")
-                            }
-                        },
-                    )
                 }
             }
         }
     }
-    }
+}
+}
 
     // -- Custom color wheel dialog (par 8.4) --
     if (state.showColorWheel) {
         ColorWheelSheet(onDismiss = viewModel::dismissColorWheel, onApply = viewModel::applyCustomColor)
+    }
+
+    // -- Reset listening stats confirm --
+    if (state.showResetStatsConfirm) {
+        AlertDialog(
+            onDismissRequest = viewModel::dismissResetStatsConfirm,
+            title = { Text(stringResource(R.string.dialog_reset_stats_title)) },
+            text = { Text(stringResource(R.string.dialog_reset_stats_text)) },
+            confirmButton = { TextButton(onClick = viewModel::confirmResetStats) { Text(stringResource(R.string.dialog_reset_stats_confirm)) } },
+            dismissButton = { TextButton(onClick = viewModel::dismissResetStatsConfirm) { Text(stringResource(R.string.common_cancel)) } },
+        )
     }
 
     // -- Clear-all-data confirm --
@@ -1318,7 +1305,10 @@ fun SettingsScreen(
             onDismissRequest = { showLanguageDialog = false },
             title = { Text(stringResource(R.string.settings_language_dialog_title)) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
                     AppLanguage.SELECTABLE.forEach { language ->
                         val selected = language == currentLanguage
                         Row(
@@ -1793,6 +1783,7 @@ fun SettingsScreen(
         }
     }
 }
+}
 
 private fun appVersionName(context: android.content.Context): String = try {
     context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "4.1.0"
@@ -1817,14 +1808,28 @@ private fun rememberPressScale(interactionSource: MutableInteractionSource): Flo
 
 @Composable
 private fun SectionLabel(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.titleSmall,
-        fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 4.dp, bottom = 2.dp),
-    )
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(start = 4.dp, bottom = 4.dp, top = 6.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(width = 4.dp, height = 16.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(MaterialTheme.colorScheme.primary)
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(
+            text = text.uppercase(),
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary,
+            letterSpacing = androidx.compose.ui.unit.TextUnit(1.1f, androidx.compose.ui.unit.TextUnitType.Sp),
+        )
+    }
 }
+
+
 
 @Composable
 private fun IconBadge(icon: ImageVector, container: Color, tint: Color, modifier: Modifier = Modifier) {
@@ -2701,7 +2706,7 @@ private fun AboutCard(versionName: String) {
                 )
             }
             Spacer(Modifier.height(14.dp))
-            Text("LastWave", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text("LASTWAVEX", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(8.dp))
             Surface(
                 shape = ExpressivePillShape,
@@ -2717,29 +2722,13 @@ private fun AboutCard(versionName: String) {
             }
             Spacer(Modifier.height(12.dp))
             Text(
-                "Built with the Last.fm API",
+                "LASTWAVEX",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
             )
         }
     }
-}
-
-private fun openTelegramChannel(context: android.content.Context, handleOrUrl: String): Boolean {
-    val username = handleOrUrl
-        .removePrefix("https://t.me/")
-        .removePrefix("http://t.me/")
-        .removePrefix("@")
-        .trim()
-    val tgIntent = Intent(Intent.ACTION_VIEW, Uri.parse("tg://resolve?domain=$username")).apply {
-        setPackage("org.telegram.messenger")
-    }
-    val genericTgIntent = Intent(Intent.ACTION_VIEW, Uri.parse("tg://resolve?domain=$username"))
-    val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/$username"))
-    return startActivitySafely(context, tgIntent) ||
-        startActivitySafely(context, genericTgIntent) ||
-        startActivitySafely(context, webIntent)
 }
 
 /** OEM Settings/browser components are optional and occasionally broken on

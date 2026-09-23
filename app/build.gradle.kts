@@ -9,6 +9,7 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -17,8 +18,15 @@ android {
 
     val localProps = Properties().apply {
         val localPropsFile = rootProject.file("local.properties")
-        if (localPropsFile.exists()) {
+        if
+                (localPropsFile.exists()) {
             localPropsFile.inputStream().use { load(it) }
+
+            localPropsFile.readLines().forEach { line ->
+                if (line.trim().startsWith("RELEASE_STORE_FILE=")) {
+                    setProperty("RELEASE_STORE_FILE", line.substringAfter("=").trim())
+                }
+            }
         }
         val envFile = rootProject.file(".env")
         if (envFile.exists()) {
@@ -35,11 +43,11 @@ android {
     fun resolveSecret(vararg keys: String): String {
         for (key in keys) {
             val fromEnv = System.getenv(key)
-            if (!fromEnv.isNullOrBlank()) return fromEnv.trim().replace("\r", "").replace("\n", "").replace("\"", "").replace("\\", "")
-            val fromGradle = project.findProperty(key) as? String
-            if (!fromGradle.isNullOrBlank()) return fromGradle.trim().replace("\r", "").replace("\n", "").replace("\"", "").replace("\\", "")
+            if (!fromEnv.isNullOrBlank()) return fromEnv.trim().replace("\r", "").replace("\n", "").replace("\"", "")
             val fromLocal = localProps.getProperty(key)
-            if (!fromLocal.isNullOrBlank()) return fromLocal.trim().replace("\r", "").replace("\n", "").replace("\"", "").replace("\\", "")
+            if (!fromLocal.isNullOrBlank()) return fromLocal.trim().replace("\r", "").replace("\n", "").replace("\"", "")
+            val fromGradle = project.findProperty(key) as? String
+            if (!fromGradle.isNullOrBlank()) return fromGradle.trim().replace("\r", "").replace("\n", "").replace("\"", "")
         }
         return ""
     }
@@ -110,7 +118,7 @@ android {
             val base64Key = resolveSecret("SIGNING_KEY")
             val storeFilePath = resolveSecret("RELEASE_STORE_FILE")
             val storePasswordProp = resolveSecret("RELEASE_STORE_PASSWORD", "KEY_STORE_PASSWORD")
-            val keyAliasProp = resolveSecret("RELEASE_KEY_ALIAS", "ALIAS").ifBlank { "release_key" }
+            val keyAliasProp = resolveSecret("RELEASE_KEY_ALIAS", "ALIAS").ifBlank { "lastwavex_release" }
             val keyPasswordProp = resolveSecret("RELEASE_KEY_PASSWORD", "KEY_PASSWORD").ifBlank { storePasswordProp }
 
             val keystoreFile: File? = when {
@@ -138,7 +146,7 @@ android {
                 enableV2Signing = true
                 enableV3Signing = true
             } else {
-                initWith(getByName("debug"))
+                throw GradleException("Production release signing is required for release builds. Please configure RELEASE_STORE_FILE, RELEASE_STORE_PASSWORD, RELEASE_KEY_ALIAS, and RELEASE_KEY_PASSWORD in local.properties or environment variables.")
             }
         }
     }
@@ -214,12 +222,6 @@ dependencies {
     implementation(libs.androidx.browser)
     implementation(libs.androidx.palette)
 
-    // Home-screen "Now Playing" widget (Glance — Compose-style APIs over
-    // RemoteViews), driven by the same MediaController access the local
-    // scrobbler (MediaScrobbleListenerService) already holds.
-    implementation("androidx.glance:glance-appwidget:1.1.1")
-    implementation("androidx.glance:glance-material3:1.1.1")
-
     // Required even in a Compose-only app: Theme.Material3.DayNight.NoActionBar
     // (used as the AndroidManifest/splash theme parent in themes.xml) is an XML
     // style resource shipped by this artifact. androidx.compose.material3 is
@@ -228,6 +230,10 @@ dependencies {
     implementation(libs.material)
 
     implementation(platform(libs.androidx.compose.bom))
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.ai)
+    implementation(libs.firebase.appcheck.playintegrity)
+    debugImplementation(libs.firebase.appcheck.debug)
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
     implementation(libs.kyant.backdrop)

@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">LastWave</string>
-    <string name="widget_name">LastWave प्लेयर</string>
-    <string name="widget_description">सभी मीडिया ऐप्स के लिए कवर, गाने की जानकारी और प्लेबैक नियंत्रण</string>
+    <string name="app_name">LASTWAVEX</string>
 
     <string name="nav_feed">फ़ीड</string>
     <string name="nav_stats">आँकड़े</string>

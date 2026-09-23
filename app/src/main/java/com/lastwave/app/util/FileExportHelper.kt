@@ -396,8 +396,10 @@ object PlaylistExportFormat {
     }
 
     fun toCsv(tracks: List<GeneratedTrack>): String {
-        val header = "Track,Artist"
-        val rows = tracks.joinToString("\n") { "${csvEscape(it.name)},${csvEscape(it.artist)}" }
+        val header = "Track,Artist,Album,URL"
+        val rows = tracks.joinToString("\n") {
+            "${csvEscape(it.name)},${csvEscape(it.artist)},${csvEscape(it.album.orEmpty())},${csvEscape(it.url)}"
+        }
         return "$header\n$rows"
     }
 

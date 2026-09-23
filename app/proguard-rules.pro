@@ -35,12 +35,6 @@
 -keep class dagger.hilt.internal.aggregatedroot.codegen.** { *; }
 -keep class hilt_aggregated_deps.** { *; }
 
-# Glance app widgets and action callbacks
--keep class * implements androidx.glance.appwidget.action.ActionCallback { *; }
--keep class * extends androidx.glance.appwidget.action.ActionCallback { *; }
--keep class * extends androidx.glance.appwidget.GlanceAppWidget { *; }
--keep class * extends androidx.glance.appwidget.GlanceAppWidgetReceiver { *; }
--keep class com.lastwave.app.widget.** { *; }
 
 # NewPipe's YouTube extractor loads service implementations and its
 # JavaScript deobfuscation engine dynamically.

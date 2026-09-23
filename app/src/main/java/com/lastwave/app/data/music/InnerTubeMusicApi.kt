@@ -549,11 +549,67 @@ class InnerTubeMusicApi @Inject constructor(
     }
 
 
-    suspend fun fetchCharts(): List<YouTubeMusicTrack> = withContext(Dispatchers.IO) {
+    suspend fun fetchCharts(countryCode: String? = null, category: String? = null): List<YouTubeMusicTrack> = withContext(Dispatchers.IO) {
         runCatching {
-            val root = browseRoot(YT_CHARTS_BROWSE_ID, authenticated = false)
+            val gl = countryCode?.takeIf { !it.equals("global", ignoreCase = true) }
+            val root = browseRoot(YT_CHARTS_BROWSE_ID, authenticated = false, countryCode = gl)
             parseSongRenderers(root)
         }.getOrDefault(emptyList())
+    }
+
+    private fun findStructuralShelf(root: JsonElement, category: com.lastwave.app.data.model.ChartCategory): JsonElement? {
+        val shelves = mutableListOf<JsonObject>()
+        collectObjects(root, "musicCarouselShelfRenderer", shelves)
+        collectObjects(root, "musicShelfRenderer", shelves)
+        return shelves.firstOrNull { shelf ->
+            val renderers = mutableListOf<JsonObject>()
+            collectObjects(shelf, "musicResponsiveListItemRenderer", renderers)
+            collectObjects(shelf, "musicTwoRowItemRenderer", renderers)
+            renderers.any { r ->
+                val browseId = r.obj("navigationEndpoint")?.obj("browseEndpoint")?.string("browseId")
+                    ?: r.obj("title")?.array("runs")?.firstOrNull()?.asObject()
+                        ?.obj("navigationEndpoint")?.obj("browseEndpoint")?.string("browseId")
+                browseId?.startsWith("UC") == true
+            }
+        }
+    }
+
+    suspend fun fetchChartEntries(
+        countryCode: String? = null,
+        category: com.lastwave.app.data.model.ChartCategory = com.lastwave.app.data.model.ChartCategory.ARTISTS,
+    ): com.lastwave.app.data.model.ChartLoadResult = withContext(Dispatchers.IO) {
+        runCatching {
+            val scope = com.lastwave.app.data.model.ChartScope.fromId(countryCode)
+            val root = browseRoot(
+                browseId = YT_CHARTS_BROWSE_ID,
+                authenticated = false,
+                countryCode = scope.glValue,
+                formDataValues = listOf(scope.formValue),
+            )
+
+            val shelf = findStructuralShelf(root, category) ?: return@withContext com.lastwave.app.data.model.ChartLoadResult.Unsupported
+            val artists = parseEntityRenderers(shelf, YouTubeMusicEntityKind.ARTIST)
+            if (artists.isEmpty()) {
+                com.lastwave.app.data.model.ChartLoadResult.Empty
+            } else {
+                val entries = artists.mapIndexed { index, entity ->
+                    com.lastwave.app.data.model.ChartEntry(
+                        rank = index + 1,
+                        previousRank = null,
+                        movement = null,
+                        title = entity.name,
+                        subtitle = entity.subtitle ?: "Top Artist",
+                        artworkUrl = entity.artworkUrl,
+                        artistBrowseId = entity.browseId,
+                        scope = scope,
+                        category = category,
+                    )
+                }
+                com.lastwave.app.data.model.ChartLoadResult.Success(entries)
+            }
+        }.getOrElse {
+            com.lastwave.app.data.model.ChartLoadResult.Error(it.localizedMessage ?: "Network error")
+        }
     }
 
     suspend fun fetchHomeMixes(): List<YouTubePlaylistSummary> = withContext(Dispatchers.IO) {
@@ -885,13 +941,23 @@ class InnerTubeMusicApi @Inject constructor(
             }.getOrElse { false }
         }
 
-    private suspend fun browseRoot(browseId: String, authenticated: Boolean): JsonObject {
+    private suspend fun browseRoot(
+        browseId: String,
+        authenticated: Boolean,
+        countryCode: String? = null,
+        formDataValues: List<String>? = null,
+    ): JsonObject {
         val config = getWebConfig()
         return post(
             url = "$MUSIC_API/browse?key=${config.apiKey}&prettyPrint=false",
             body = buildJsonObject {
-                put("context", context("WEB_REMIX", config.clientVersion, config.visitorData))
+                put("context", context("WEB_REMIX", config.clientVersion, config.visitorData, countryCode = countryCode))
                 put("browseId", browseId)
+                if (!formDataValues.isNullOrEmpty()) {
+                    put("formData", buildJsonObject {
+                        put("selectedValues", JsonArray(formDataValues.map { JsonPrimitive(it) }))
+                    })
+                }
             },
             clientName = "WEB_REMIX",
             clientVersion = config.clientVersion,
@@ -2297,13 +2363,19 @@ class InnerTubeMusicApi @Inject constructor(
         else -> false
     }
 
-    private fun context(name: String, version: String, visitorData: String?, osVersion: String? = null): JsonObject =
+    private fun context(
+        name: String,
+        version: String,
+        visitorData: String?,
+        osVersion: String? = null,
+        countryCode: String? = null,
+    ): JsonObject =
         buildJsonObject {
             put("client", buildJsonObject {
                 put("clientName", name)
                 put("clientVersion", version)
                 put("hl", "en")
-                put("gl", "US")
+                put("gl", countryCode?.ifBlank { "US" } ?: "US")
                 if (!visitorData.isNullOrBlank()) put("visitorData", visitorData)
                 if (!osVersion.isNullOrBlank()) put("osVersion", osVersion)
             })

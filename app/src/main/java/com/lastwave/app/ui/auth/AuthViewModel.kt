@@ -92,10 +92,10 @@ class AuthViewModel @Inject constructor(
                 _webAuthState.value = WebAuthState.AwaitingApproval(url)
             }
             BackupCheck.UnsupportedSchema -> {
-                _webAuthState.value = WebAuthState.Error("This backup was created by a newer LastWave version")
+                _webAuthState.value = WebAuthState.Error("This backup was created by a newer LASTWAVEX version")
             }
             BackupCheck.Invalid -> {
-                _webAuthState.value = WebAuthState.Error("That file is not a valid LastWave backup")
+                _webAuthState.value = WebAuthState.Error("That file is not a valid LASTWAVEX backup")
             }
         }
     }
@@ -109,11 +109,11 @@ class AuthViewModel @Inject constructor(
     fun restoreBackupOnly(content: String) {
         when (backupRepository.checkBackup(content)) {
             BackupCheck.UnsupportedSchema -> {
-                _webAuthState.value = WebAuthState.Error("This backup was created by a newer LastWave version")
+                _webAuthState.value = WebAuthState.Error("This backup was created by a newer LASTWAVEX version")
                 return
             }
             BackupCheck.Invalid -> {
-                _webAuthState.value = WebAuthState.Error("That file is not a valid LastWave backup")
+                _webAuthState.value = WebAuthState.Error("That file is not a valid LASTWAVEX backup")
                 return
             }
             is BackupCheck.Valid -> Unit
@@ -128,10 +128,10 @@ class AuthViewModel @Inject constructor(
             ) {
                 is RestoreResult.Success -> WebAuthState.Idle
                 RestoreResult.UnsupportedSchema -> WebAuthState.Error(
-                    "This backup was created by a newer LastWave version",
+                    "This backup was created by a newer LASTWAVEX version",
                 )
                 RestoreResult.InvalidFile -> WebAuthState.Error(
-                    "That file is not a valid LastWave backup",
+                    "That file is not a valid LASTWAVEX backup",
                 )
                 is RestoreResult.Failed -> WebAuthState.Error(restoreResult.message)
             }
@@ -166,10 +166,10 @@ class AuthViewModel @Inject constructor(
                     ) {
                         is RestoreResult.Success -> WebAuthState.Idle
                         RestoreResult.UnsupportedSchema -> WebAuthState.Error(
-                            "This backup was created by a newer LastWave version",
+                            "This backup was created by a newer LASTWAVEX version",
                         )
                         RestoreResult.InvalidFile -> WebAuthState.Error(
-                            "That file is not a valid LastWave backup",
+                            "That file is not a valid LASTWAVEX backup",
                         )
                         is RestoreResult.Failed -> WebAuthState.Error(restoreResult.message)
                     }

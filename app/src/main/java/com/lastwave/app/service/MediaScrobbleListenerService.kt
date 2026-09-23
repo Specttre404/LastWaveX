@@ -1,7 +1,6 @@
 package com.lastwave.app.service
 
 import android.content.ComponentName
-import android.graphics.Bitmap
 import android.media.MediaMetadata
 import android.media.session.MediaController
 import android.media.session.MediaSessionManager
@@ -9,14 +8,8 @@ import android.media.session.PlaybackState
 import android.os.SystemClock
 import android.service.notification.NotificationListenerService
 import android.util.Log
-import androidx.core.graphics.drawable.toBitmap
-import coil.imageLoader
-import coil.request.ImageRequest
-import coil.request.SuccessResult
 import com.lastwave.app.data.local.ScrobblerPreferences
 import com.lastwave.app.data.repository.ScrobbleRepository
-import com.lastwave.app.widget.ActiveMediaSessionHolder
-import com.lastwave.app.widget.WidgetUpdater
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -118,7 +111,6 @@ class MediaScrobbleListenerService : NotificationListenerService() {
     // risked ConcurrentModificationException / corrupted state mid-music; a
     // concurrent map makes every reader/writer safe without extra locking.
     private val watched = java.util.concurrent.ConcurrentHashMap<android.media.session.MediaSession.Token, WatchedSession>()
-    private var widgetSignature: String = ""
 
     /** The track key (artist|title) LastWave most recently told Last.fm is
      *  "now playing", across ALL watched sessions — not per-session. Last.fm
@@ -150,10 +142,6 @@ class MediaScrobbleListenerService : NotificationListenerService() {
         // backward jump (a restart/repeat), not for anything else.
         var lastPositionMs: Long = 0L
         var lastActiveElapsed: Long = SystemClock.elapsedRealtime()
-        var widgetArtworkUri: String? = null
-        var widgetArtwork: Bitmap? = null
-        var widgetArtworkJob: Job? = null
-        var widgetTrackTitle: String = ""
     }
 
     override fun onCreate() {
@@ -169,7 +157,7 @@ class MediaScrobbleListenerService : NotificationListenerService() {
                     val changedPackages = selectedPackages != s.selectedPackages
                     selectedPackages = s.selectedPackages
                     if (wasEnabled != enabled || changedPackages) {
-                        debugLog.log("Settings: enabled=$enabled, nowPlaying=$submitNowPlaying, percent=$scrobblePercent%, scrobbling=${selectedPackages.size} app(s); widgets watch all sessions")
+                        debugLog.log("Settings: enabled=$enabled, nowPlaying=$submitNowPlaying, percent=$scrobblePercent%, scrobbling=${selectedPackages.size} app(s)")
                     }
                     if (changedPackages) refreshActiveSessions()
                     if (enabled && (!wasEnabled || newlySelected.isNotEmpty())) {
@@ -322,20 +310,6 @@ class MediaScrobbleListenerService : NotificationListenerService() {
         val session = watched.remove(token) ?: return
         session.callback?.let { runCatching { session.controller.unregisterCallback(it) } }
         session.scrobbleJob?.cancel()
-        session.widgetArtworkJob?.cancel()
-        // No more tracked sessions at all — fall back to the widget's
-        // empty "nothing playing" state instead of leaving stale info up,
-        // and drop the transport-control target since it's no longer valid.
-        if (watched.isEmpty()) {
-            ActiveMediaSessionHolder.controller = null
-            widgetSignature = ""
-            serviceScope.launch {
-                runCatching { WidgetUpdater.clear(applicationContext) }
-                    .onFailure { Log.w(TAG, "widget clear failed", it) }
-            }
-        } else {
-            publishBestWidgetState()
-        }
     }
 
     private fun unbindAll() {
@@ -366,10 +340,7 @@ class MediaScrobbleListenerService : NotificationListenerService() {
         val title = metadata.getString(MediaMetadata.METADATA_KEY_TITLE)
         if (title.isNullOrBlank()) return
         session.lastActiveElapsed = SystemClock.elapsedRealtime()
-        // Some players publish a title but omit artist. Keep those visible
-        // in widgets; incomplete metadata is still excluded from scrobbling.
         if (rawArtist.isNullOrBlank()) {
-            publishBestWidgetState(session)
             return
         }
         val artist = cleanArtist(rawArtist)
@@ -398,7 +369,6 @@ class MediaScrobbleListenerService : NotificationListenerService() {
                 session.scrobbleJob?.cancel()
                 scheduleScrobbleCheck(session, key, artist, title, album, durationMs)
             }
-            publishBestWidgetState(session)
             return
         }
 
@@ -422,7 +392,6 @@ class MediaScrobbleListenerService : NotificationListenerService() {
             announceNowPlaying(key, artist, title, album)
         }
         scheduleScrobbleCheck(session, key, artist, title, album, durationMs)
-        publishBestWidgetState(session)
     }
 
     /** Fires on EVERY playback-state transition, not just track changes —
@@ -499,117 +468,8 @@ class MediaScrobbleListenerService : NotificationListenerService() {
             }
             session.playingSinceElapsed = null
         }
-        publishBestWidgetState(session)
     }
 
-    /** Pushes the session's current title/artist/art/playing-state into the
-     *  home-screen widget (see widget/WidgetUpdater.kt) and points
-     *  [ActiveMediaSessionHolder] at this session's controller so the
-     *  widget's Play/Pause and Skip taps have a real target — same
-     *  MediaController this service already holds for scrobbling, no
-     *  separate connection needed. Best-effort: art may be null for apps
-     *  that don't publish album art on their MediaSession, in which case
-     *  the widget falls back to showing just the app icon. */
-    private fun publishBestWidgetState(preferred: WatchedSession? = null) {
-        val best = watched.values
-            .filter { session ->
-                val meta = session.controller.metadata
-                val title = meta?.getString(MediaMetadata.METADATA_KEY_TITLE)
-                    ?: meta?.getString(MediaMetadata.METADATA_KEY_DISPLAY_TITLE)
-                    ?: meta?.description?.title?.toString()
-                !title.isNullOrBlank()
-            }
-            .maxWithOrNull(
-                compareBy<WatchedSession> { widgetPlaybackRank(it.controller.playbackState?.state) }
-                    .thenBy { if (it === preferred) 1 else 0 }
-                    .thenBy { it.lastActiveElapsed },
-            ) ?: return
-        val metadata = best.controller.metadata ?: return
-        val title = (metadata.getString(MediaMetadata.METADATA_KEY_TITLE)
-            ?: metadata.getString(MediaMetadata.METADATA_KEY_DISPLAY_TITLE)
-            ?: metadata.description?.title?.toString())?.trim().orEmpty()
-        val rawArtist = metadata.getString(MediaMetadata.METADATA_KEY_ARTIST)
-            ?: metadata.getString(MediaMetadata.METADATA_KEY_ALBUM_ARTIST)
-            ?: metadata.getString(MediaMetadata.METADATA_KEY_AUTHOR)
-            ?: metadata.getString(MediaMetadata.METADATA_KEY_DISPLAY_SUBTITLE)
-            ?: metadata.description?.subtitle?.toString()
-        val sourceApp = applicationLabel(best.controller.packageName)
-        val artist = rawArtist?.takeIf(String::isNotBlank)?.let(::cleanArtist) ?: sourceApp
-        val album = metadata.getString(MediaMetadata.METADATA_KEY_ALBUM)
-            ?: metadata.getString(MediaMetadata.METADATA_KEY_DISPLAY_DESCRIPTION)
-            ?: metadata.description?.description?.toString()
-        if (best.widgetTrackTitle != title) {
-            best.widgetTrackTitle = title
-            best.widgetArtworkJob?.cancel()
-            best.widgetArtworkUri = null
-            best.widgetArtwork = null
-        }
-        val embeddedArt = metadata.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
-            ?: metadata.getBitmap(MediaMetadata.METADATA_KEY_ART)
-            ?: metadata.description?.iconBitmap
-        if (embeddedArt != null) best.widgetArtwork = embeddedArt
-        val artUri = metadata.getString(MediaMetadata.METADATA_KEY_ALBUM_ART_URI)
-            ?: metadata.getString(MediaMetadata.METADATA_KEY_ART_URI)
-            ?: metadata.description?.iconUri?.toString()
-        if (embeddedArt == null && !artUri.isNullOrBlank() && artUri != best.widgetArtworkUri) {
-            requestWidgetArtwork(best, artUri)
-        }
-        val art = embeddedArt ?: best.widgetArtwork
-        val playing = best.controller.playbackState?.state == PlaybackState.STATE_PLAYING
-        val signature = "${best.controller.packageName}|$title|$artist|$album|$playing|${System.identityHashCode(art)}"
-        if (signature == widgetSignature) return
-        widgetSignature = signature
-        ActiveMediaSessionHolder.controller = best.controller
-        serviceScope.launch {
-            runCatching {
-                WidgetUpdater.publish(
-                    context = applicationContext,
-                    title = title,
-                    artist = artist,
-                    album = album,
-                    sourceApp = sourceApp,
-                    sourcePackage = best.controller.packageName,
-                    art = art,
-                    isPlaying = playing,
-                )
-            }.onFailure { Log.w(TAG, "widget publish failed", it) }
-        }
-    }
-
-    private fun widgetPlaybackRank(state: Int?): Int = when (state) {
-        PlaybackState.STATE_PLAYING -> 5
-        PlaybackState.STATE_BUFFERING, PlaybackState.STATE_CONNECTING -> 4
-        PlaybackState.STATE_PAUSED -> 3
-        PlaybackState.STATE_FAST_FORWARDING, PlaybackState.STATE_REWINDING -> 2
-        else -> 1
-    }
-
-    private fun requestWidgetArtwork(session: WatchedSession, uri: String) {
-        session.widgetArtworkUri = uri
-        session.widgetArtwork = null
-        session.widgetArtworkJob?.cancel()
-        session.widgetArtworkJob = serviceScope.launch {
-            val bitmap = runCatching {
-                val result = applicationContext.imageLoader.execute(
-                    ImageRequest.Builder(applicationContext)
-                        .data(uri)
-                        .size(720)
-                        .allowHardware(false)
-                        .build(),
-                )
-                (result as? SuccessResult)?.drawable?.toBitmap()
-            }.getOrNull()
-            if (session.widgetArtworkUri != uri) return@launch
-            session.widgetArtwork = bitmap
-            widgetSignature = ""
-            publishBestWidgetState(session)
-        }
-    }
-
-    private fun applicationLabel(packageName: String): String = runCatching {
-        val info = packageManager.getApplicationInfo(packageName, 0)
-        packageManager.getApplicationLabel(info).toString()
-    }.getOrDefault(packageName.substringAfterLast('.'))
 
     private fun isSelectedForScrobbling(session: WatchedSession): Boolean =
         session.controller.packageName in selectedPackages

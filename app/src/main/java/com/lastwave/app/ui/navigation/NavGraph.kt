@@ -277,7 +277,21 @@ fun LastWaveNavHost(
                 onOpenNewReleases = {
                     navController.navigate(Screen.NewReleases.route)
                 },
+                onOpenCharts = {
+                    navController.navigate(Screen.Charts.route)
+                },
             )
+        }
+
+        composable(Screen.Charts.route) {
+            PredictiveBackScreen(onBack = { navController.popBackStack() }) {
+                com.lastwave.app.ui.charts.ChartsScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenArtist = { artistName, browseId ->
+                        navController.navigate(Screen.ArtistDetail.createRoute(artistName, browseId = browseId))
+                    },
+                )
+            }
         }
 
         composable(Screen.Create.route) {
@@ -613,7 +627,7 @@ private fun LaunchGate() {
                 )
             }
             Spacer(Modifier.height(18.dp))
-            Text("LastWave", style = MaterialTheme.typography.headlineSmall)
+            Text("LASTWAVEX", style = MaterialTheme.typography.headlineSmall)
             Spacer(Modifier.height(20.dp))
             ExpressiveLoadingIndicator(message = "Preparing your music")
         }

@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Album
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
@@ -240,7 +241,7 @@ fun TrackContextMenuSheet(
     capabilities: TrackMenuCapabilities,
     playableTrack: PlayableTrack? = null,
     onDismiss: () -> Unit,
-    playbackSourceLabel: String = "LastWave",
+    playbackSourceLabel: String = "LASTWAVEX",
     onPlayInLastWave: (() -> Unit)? = null,
     onStartMix: ((trackName: String, artistName: String) -> Unit)? = null,
     onExploreGenre: ((genre: String) -> Unit)? = null,
@@ -474,6 +475,7 @@ fun TrackContextMenuSheet(
                             }
                         }
                     }
+                    add { pos -> MenuActionRow(Icons.Filled.QueuePlayNext, "Play next", position = pos) { musicPlayer.playNext(playable); onDismiss() } }
                     add { pos -> MenuActionRow(Icons.Filled.QueueMusic, "Add to queue", position = pos) { musicPlayer.addToQueue(playable); onDismiss() } }
                     add { pos ->
                         Card(

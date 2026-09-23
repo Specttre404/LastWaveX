@@ -3,7 +3,6 @@ package com.lastwave.app.ui.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lastwave.app.data.local.SessionPreferences
-import com.lastwave.app.data.model.FriendEntry
 import com.lastwave.app.data.repository.HomeRepository
 import com.lastwave.app.data.repository.HomeSortMode
 import com.lastwave.app.data.repository.HomeStats
@@ -27,6 +26,7 @@ import java.util.Calendar
 import javax.inject.Inject
 
 import androidx.compose.runtime.Immutable
+import com.lastwave.app.data.model.FriendEntry
 import kotlinx.coroutines.Dispatchers
 
 @Immutable
@@ -654,14 +654,6 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch { settingsPreferences.toggleFriendPinned(username) }
     }
 
-    /** Switches the whole Home screen over to a friend's data — every
-     *  fetch (recent tracks, stats, top tracks for every period) re-runs
-     *  for [friend]'s username instead of the signed-in one. */
-    fun viewFriend(friend: FriendEntry) {
-        _uiState.update { it.copy(showFriendsSheet = false) }
-        viewingProfileState.set(friend.name)
-        loadForUsername(friend.name)
-    }
 
     /** Switches back to the signed-in user's own data. */
     fun returnToOwnProfile() {
@@ -884,6 +876,4 @@ class HomeViewModel @Inject constructor(
             }
         }
     }
-
-    fun dismissError() = _uiState.update { it.copy(error = null) }
 }

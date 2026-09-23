@@ -14,6 +14,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.SET_WALLPAPER" />
     <!-- Target audio playback and known music players without requiring QUERY_ALL_PACKAGES -->
     <queries>
         <intent>
@@ -157,7 +158,7 @@
         <service
             android:name=".service.MediaScrobbleListenerService"
             android:exported="true"
-            android:label="LastWave Scrobbler"
+            android:label="LASTWAVEX Scrobbler"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
             <intent-filter>
                 <action android:name="android.service.notification.NotificationListenerService" />
@@ -187,19 +188,6 @@
             <intent-filter>
                 <action android:name="android.intent.action.MEDIA_BUTTON" />
             </intent-filter>
-        </receiver>
-
-        <!-- Now playing widget -->
-        <receiver
-            android:name=".widget.NowPlayingWidgetReceiver"
-            android:exported="false"
-            android:label="@string/widget_name">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/now_playing_widget_info" />
         </receiver>
 
         <!-- Receiver for cancel/reconnect actions on background-download notifications -->

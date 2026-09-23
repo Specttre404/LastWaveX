@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">LastWaveX</string>
-    <string name="widget_name">LastWave Player</string>
-    <string name="widget_description">Artwork, track details and playback controls for every media app</string>
+    <string name="app_name">LASTWAVEX</string>
 
     <!-- Bottom navigation -->
     <string name="nav_feed">Feed</string>
@@ -12,7 +10,7 @@
     <string name="update_available">Update Available</string>
     <string name="update">Update</string>
     <string name="dismiss_update">Dismiss update</string>
-    <string name="update_ready_to_install">LastWave v%1$s is ready to install</string>
+    <string name="update_ready_to_install">LASTWAVEX v%1$s is ready to install</string>
 
     <!-- Settings -->
     <string name="settings">Settings</string>
@@ -100,6 +98,8 @@
 
     <string name="settings_section_data">Data Management</string>
     <string name="settings_excluded_songs">Excluded Songs</string>
+    <string name="settings_reset_stats" translatable="false">Reset Listening Statistics</string>
+    <string name="settings_reset_stats_sub" translatable="false">Clears local play counts, listening time, and skip records</string>
     <string name="settings_clear_all">Clear All Saved Data</string>
     <string name="settings_clear_all_sub">Wipes all local data</string>
 
@@ -280,6 +280,9 @@
     <string name="dialog_clear_all_title">Clear all data?</string>
     <string name="dialog_clear_all_text">This removes your credentials, playlists, and cached data. This can\'t be undone.</string>
     <string name="dialog_clear_all_confirm">Clear Everything</string>
+    <string name="dialog_reset_stats_title" translatable="false">Reset listening statistics?</string>
+    <string name="dialog_reset_stats_text" translatable="false">This will permanently clear your local play counts, total play time, and skip history. Your playlists, downloads, and account session will not be affected.</string>
+    <string name="dialog_reset_stats_confirm" translatable="false">Reset Statistics</string>
     <string name="dialog_disconnect_yt_title">Disconnect YouTube Music?</string>
     <string name="dialog_disconnect_yt_text">Playlists already mirrored to your account stay there, but LastWave stops syncing and forgets the connection.</string>
     <string name="dialog_logout_title">Log out from Last.fm?</string>

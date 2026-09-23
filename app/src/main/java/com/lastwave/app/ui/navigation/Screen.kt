@@ -17,6 +17,7 @@ sealed class Screen(val route: String) {
     data object Playlist : Screen("playlist")
 
     // Pushed screens, slide-in from the right (matches PAGE_TRANSITIONS in nav.js)
+    data object Charts : Screen("charts")
     data object Discover : Screen("discover")
     data object Genres : Screen("genres")
     data object Search : Screen("search")

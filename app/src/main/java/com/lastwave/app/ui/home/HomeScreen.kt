@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -32,12 +31,14 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.QueueMusic
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
@@ -65,15 +66,8 @@ import com.lastwave.app.ui.common.adaptiveContentWidth
 import com.lastwave.app.ui.common.TrackContextMenuSheet
 import com.lastwave.app.ui.common.TrackMenuCapabilities
 import com.lastwave.app.ui.common.TrackMenuTarget
-import com.lastwave.app.ui.theme.ArtworkShape
-import com.lastwave.app.ui.theme.BadgePillShape
 import com.lastwave.app.ui.theme.ExpressiveHeroShape
 import com.lastwave.app.ui.theme.ExpressivePillShape
-import com.lastwave.app.ui.theme.HeroInnerShape
-import com.lastwave.app.ui.theme.ListContainerShape
-import com.lastwave.app.ui.theme.NowPlayingCardShape
-import com.lastwave.app.ui.theme.StatPillShape
-import com.lastwave.app.ui.theme.TrackRowShape
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.Scaffold
 import androidx.compose.material.icons.filled.Explore
@@ -135,8 +129,6 @@ private val TrackRowShape = RoundedCornerShape(18.dp)
 private val NowPlayingCardShape = RoundedCornerShape(22.dp)
 private val ArtworkShape = RoundedCornerShape(14.dp)
 private val BadgePillShape = RoundedCornerShape(50)
-private val StatPillShape = RoundedCornerShape(20.dp)
-private val HeroInnerShape = RoundedCornerShape(24.dp)
 
 /**
  * Faithful port of home.html/home.js's layout, top to bottom:
@@ -175,7 +167,7 @@ fun HomeScreen(
         topBar = {
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                 ExpressiveHeader(
-                    title = "Stats",
+                    title = "LastWaveX",
                     modifier = Modifier.adaptiveContentWidth(maxWidth = 860.dp),
                     actions = {
                         HeaderActionIcon(Icons.Filled.Explore, "Discover", onOpenDiscover)
@@ -531,7 +523,7 @@ private fun LocalStatsBanner(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                "Connect Last.fm in Settings to sync global scrobbles",
+                "Connect Scrobbler in Settings to sync listening history",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSecondaryContainer,
                 modifier = Modifier.weight(1f),
@@ -710,54 +702,159 @@ private fun StatsCard(
             shadowElevation = 4.dp,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Column(Modifier.padding(horizontal = 20.dp, vertical = 18.dp)) {
-                Surface(
-                    shape = HeroInnerShape,
-                    color = MaterialTheme.colorScheme.primaryContainer,
+            Column(Modifier.padding(horizontal = 18.dp, vertical = 16.dp)) {
+                // Dashboard Header Row
+                Row(
                     modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 16.dp)) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.align(Alignment.Center),
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Filled.BarChart,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp),
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            "LASTWAVEX INSIGHTS",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            letterSpacing = androidx.compose.ui.unit.TextUnit(1.0f, androidx.compose.ui.unit.TextUnitType.Sp),
+                        )
+                    }
+
+                    Surface(
+                        onClick = onOpenGenres,
+                        shape = BadgePillShape,
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
-                                formatCount(rememberAnimatedCount(scrobbles)),
-                                style = MaterialTheme.typography.displaySmall,
-                                fontWeight = FontWeight.Bold,
+                                "Taste Profile",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer,
                             )
-                            Text(
-                                headlineLabel,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f),
+                            Spacer(Modifier.width(4.dp))
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.size(14.dp),
                             )
-                        }
-                        Surface(
-                            shape = ExpressivePillShape,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(46.dp).align(Alignment.CenterEnd),
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                IconButton(onClick = onOpenGenres) {
-                                    Icon(
-                                        Icons.AutoMirrored.Filled.ArrowForward,
-                                        contentDescription = "View genres",
-                                        tint = MaterialTheme.colorScheme.onPrimary,
-                                    )
-                                }
-                            }
                         }
                     }
                 }
 
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(14.dp))
 
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    StatPill("Tracks", trackCount, Modifier.weight(1f))
-                    StatPill("Artists", artistCount, Modifier.weight(1f))
-                    StatPill("Albums", albumCount, Modifier.weight(1f))
+                // 2x2 Grid of Metrics Cards
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        MetricBox(
+                            title = headlineLabel,
+                            value = scrobbles,
+                            icon = Icons.Filled.GraphicEq,
+                            highlight = true,
+                            modifier = Modifier.weight(1f),
+                        )
+                        MetricBox(
+                            title = "Tracks",
+                            value = trackCount,
+                            icon = Icons.Filled.MusicNote,
+                            highlight = false,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        MetricBox(
+                            title = "Artists",
+                            value = artistCount,
+                            icon = Icons.Filled.Headset,
+                            highlight = false,
+                            modifier = Modifier.weight(1f),
+                        )
+                        MetricBox(
+                            title = "Albums",
+                            value = albumCount,
+                            icon = Icons.AutoMirrored.Filled.QueueMusic,
+                            highlight = false,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MetricBox(
+    title: String,
+    value: Long,
+    icon: ImageVector,
+    highlight: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val containerColor = if (highlight) MaterialTheme.colorScheme.primaryContainer
+    else liquidGlassContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest)
+    val contentColor = if (highlight) MaterialTheme.colorScheme.onPrimaryContainer
+    else MaterialTheme.colorScheme.onSurface
+
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = containerColor,
+        modifier = modifier,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (highlight) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.surfaceVariant
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = if (highlight) MaterialTheme.colorScheme.onPrimary
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+            Spacer(Modifier.width(10.dp))
+            Column {
+                Text(
+                    formatCount(rememberAnimatedCount(value)),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = contentColor,
+                    maxLines = 1,
+                )
+                Text(
+                    title,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = contentColor.copy(alpha = 0.75f),
+                    maxLines = 1,
+                )
             }
         }
     }
@@ -778,29 +875,6 @@ private fun rememberAnimatedCount(target: Long): Long {
     return animated.value.toLong()
 }
 
-@Composable
-private fun StatPill(label: String, value: Long, modifier: Modifier = Modifier) {
-    Surface(
-        modifier = modifier.liquidGlassChrome(StatPillShape, LocalLiquidGlass.current),
-        shape = StatPillShape,
-        color = liquidGlassContainerColor(MaterialTheme.colorScheme.surface.copy(alpha = 0.55f)),
-    ) {
-        Column(Modifier.padding(vertical = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                formatCount(rememberAnimatedCount(value)),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-            )
-            Text(
-                label,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f),
-            )
-        }
-    }
-}
-
 private fun formatCount(value: Long): String = if (value <= 0) "—" else "%,d".format(value)
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -808,21 +882,11 @@ private fun formatCount(value: Long): String = if (value <= 0) "—" else "%,d".
 private fun MixHeader(sortMode: HomeSortMode, onSortModeChange: (HomeSortMode) -> Unit) {
     var menuOpen by remember { mutableStateOf(false) }
     val haptics = LocalHapticFeedback.current
-    // Real, felt tactile feedback: haptic now fires the instant the pill is
-    // pressed (finger down), not only after the click completes — firing it
-    // solely inside onClick meant it landed at the same moment the dropdown
-    // menu opened and covered the pill, which could read as "nothing
-    // happened" since the press-scale's own short spring had barely started
-    // by then. A dedicated LaunchedEffect on the raw pressed state decouples
-    // the haptic from whatever the click itself goes on to do.
     val pillInteractionSource = remember { MutableInteractionSource() }
     val pillPressed by pillInteractionSource.collectIsPressedAsState()
     LaunchedEffect(pillPressed) {
         if (pillPressed) haptics.performHapticFeedback(HapticFeedbackType.LongPress)
     }
-    // A more pronounced dip than the shared rememberGroupPressScale (tuned
-    // for full-width group rows) — a small pill needs a bigger relative
-    // shrink to actually read as a press at this size.
     val pillScale by animateFloatAsState(
         targetValue = if (pillPressed) 0.90f else 1f,
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
@@ -834,7 +898,7 @@ private fun MixHeader(sortMode: HomeSortMode, onSortModeChange: (HomeSortMode) -
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Text(
-            "List",
+            "Activity Stream",
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.align(Alignment.CenterVertically),

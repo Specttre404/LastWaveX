@@ -51,6 +51,7 @@ import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material.icons.filled.Whatshot
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -95,7 +96,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.lastwave.app.data.feed.FeedAlbum
 import com.lastwave.app.data.feed.FeedArtist
-import com.lastwave.app.data.feed.FeedQuickTile
 import com.lastwave.app.data.feed.FeedSpotlight
 import com.lastwave.app.util.ArtistHelper
 import com.lastwave.app.data.generate.GeneratedTrack
@@ -126,6 +126,16 @@ import com.lastwave.app.ui.theme.liquidGlassChrome
 import com.lastwave.app.ui.theme.LiquidGlassPreset
 import com.lastwave.app.ui.theme.liquidGlassContainerColor
 
+enum class FeedCategoryFilter(val label: String) {
+    ALL("All"),
+    RADIO("Instant Radio"),
+    QUICK_PICKS("Quick Picks"),
+    MIXES("Mixes"),
+    SPOTLIGHT("Spotlight"),
+    ARTISTS("Top Artists"),
+    ALBUMS("Top Albums"),
+}
+
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun FeedScreen(
@@ -138,6 +148,7 @@ fun FeedScreen(
     onOpenFriends: () -> Unit = {},
     onOpenFriendProfile: (username: String, displayName: String?, avatarUrl: String?) -> Unit = { _, _, _ -> },
     onOpenNewReleases: () -> Unit = {},
+    onOpenCharts: () -> Unit = {},
     viewModel: FeedViewModel = hiltViewModel(),
     artistAlbumNavigator: ArtistAlbumNavigator = hiltViewModel<ArtistAlbumNavBridgeFeed>().navigator,
 ) {
@@ -158,11 +169,11 @@ fun FeedScreen(
     fun isSectionVisible(section: HomeSection) = section.id !in hiddenSections
     val snackbarHostState = remember { SnackbarHostState() }
     val hasFeedContent = with(state.feedData) {
-        quickTiles.isNotEmpty() || mixes.isNotEmpty() || topArtists.isNotEmpty() ||
+        mixes.isNotEmpty() || topArtists.isNotEmpty() ||
             quickPicks.isNotEmpty() || jumpBackIn.isNotEmpty() || recentAlbums.isNotEmpty() ||
             heavyRotation.isNotEmpty() || ytLikedSongs.isNotEmpty() || ytRecentSongs.isNotEmpty() ||
             (becauseYouListenTo?.items?.isNotEmpty() == true) || freshFinds.isNotEmpty() ||
-            spotlight != null || charts.isNotEmpty() || newReleases.isNotEmpty() || friends.isNotEmpty()
+            spotlight != null || newReleases.isNotEmpty() || friends.isNotEmpty()
     }
     val greeting = remember {
         when (java.time.LocalTime.now().hour) {
@@ -196,13 +207,40 @@ fun FeedScreen(
                 .adaptiveContentWidth(maxWidth = 920.dp),
         ) {
             ExpressiveHeader(
-                title = "Home",
+                title = "LASTWAVEX",
                 actions = {
+                    HeaderActionIcon(Icons.Filled.TrendingUp, "Charts & Rankings", onOpenCharts)
                     HeaderActionIcon(Icons.Filled.Explore, "Discover Radar", onOpenDiscover)
                     HeaderActionIcon(Icons.Filled.Search, "Search", onOpenSearch)
                     HeaderActionIcon(Icons.Filled.Settings, "Settings", onOpenSettings)
                 },
             )
+
+            var activeFilter by remember { mutableStateOf(FeedCategoryFilter.ALL) }
+
+            LazyRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                items(FeedCategoryFilter.entries) { filter ->
+                    val selected = filter == activeFilter
+                    FilterChip(
+                        selected = selected,
+                        onClick = { activeFilter = filter },
+                        label = {
+                            Text(
+                                filter.label,
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                            )
+                        },
+                        shape = CircleShape,
+                    )
+                }
+            }
 
             PullToRefreshBox(
                 isRefreshing = state.isRefreshing,
@@ -249,7 +287,7 @@ fun FeedScreen(
                     ),
                     verticalArrangement = Arrangement.spacedBy(24.dp),
                 ) {
-                    if (isSectionVisible(HomeSection.HERO)) {
+                    if (isSectionVisible(HomeSection.HERO) && (activeFilter == FeedCategoryFilter.ALL || activeFilter == FeedCategoryFilter.RADIO)) {
                     item(key = "hero") {
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Column(
@@ -287,34 +325,8 @@ fun FeedScreen(
                     }
                     }
 
-                    val quickTiles = if (state.feedData.isYtConnected) {
-                        state.feedData.quickTiles
-                    } else {
-                        state.feedData.quickTiles.filter {
-                            it.collection != "yt_liked" && it.collection != "yt_recent" &&
-                                it.playlistId != "yt_liked" && it.playlistId != "yt_recent"
-                        }
-                    }
-                    if (isSectionVisible(HomeSection.QUICK_TILES) && quickTiles.isNotEmpty()) {
-                        item(key = "quick_tiles") {
-                            QuickTilesGrid(
-                                tiles = quickTiles,
-                                onTileClick = { tile ->
-                                    when {
-                                        tile.collection == "radio" -> viewModel.playInfiniteRadio()
-                                        tile.collection == "yt_liked" || tile.playlistId == "yt_liked" -> onOpenFeedPlaylist("yt_liked")
-                                        tile.collection == "yt_recent" || tile.playlistId == "yt_recent" -> onOpenFeedPlaylist("yt_recent")
-                                        tile.collection == "new_releases" -> onOpenNewReleases()
-                                        tile.localPlaylistId != null -> onOpenPlaylist(tile.localPlaylistId)
-                                        tile.playlistId != null -> onOpenFeedPlaylist(tile.playlistId)
-                                        else -> viewModel.handleQuickTileClick(tile)
-                                    }
-                                },
-                            )
-                        }
-                    }
 
-                    if (isSectionVisible(HomeSection.TASTE_STRIP) && state.feedData.tasteTags.isNotEmpty()) {
+                    if (isSectionVisible(HomeSection.TASTE_STRIP) && (activeFilter == FeedCategoryFilter.ALL || activeFilter == FeedCategoryFilter.MIXES) && state.feedData.tasteTags.isNotEmpty()) {
                         item(key = "taste_strip") {
                             TasteStrip(
                                 tags = state.feedData.tasteTags,
@@ -324,7 +336,7 @@ fun FeedScreen(
                         }
                     }
 
-                    if (isSectionVisible(HomeSection.QUICK_PICKS) && state.feedData.quickPicks.isNotEmpty()) {
+                    if (isSectionVisible(HomeSection.QUICK_PICKS) && (activeFilter == FeedCategoryFilter.ALL || activeFilter == FeedCategoryFilter.QUICK_PICKS) && state.feedData.quickPicks.isNotEmpty()) {
                         item(key = "quick_picks") {
                             val title = if (state.feedData.hasYtRecommendations) "Picked for you" else "Quick picks"
                             val subtitle = if (state.feedData.hasYtRecommendations) {
@@ -352,7 +364,7 @@ fun FeedScreen(
                         }
                     }
 
-                    if (isSectionVisible(HomeSection.BECAUSE_YOU_LISTEN_TO)) {
+                    if (isSectionVisible(HomeSection.BECAUSE_YOU_LISTEN_TO) && (activeFilter == FeedCategoryFilter.ALL || activeFilter == FeedCategoryFilter.QUICK_PICKS)) {
                     state.feedData.becauseYouListenTo?.takeIf { it.items.isNotEmpty() }?.let { section ->
                         item(key = "because_you_listen_to") {
                             FeedSectionHeader(
@@ -381,7 +393,7 @@ fun FeedScreen(
                     }
                     }
 
-                    if (isSectionVisible(HomeSection.FRESH_FINDS) && state.feedData.freshFinds.isNotEmpty()) {
+                    if (isSectionVisible(HomeSection.FRESH_FINDS) && (activeFilter == FeedCategoryFilter.ALL || activeFilter == FeedCategoryFilter.QUICK_PICKS) && state.feedData.freshFinds.isNotEmpty()) {
                         item(key = "fresh_finds") {
                             FeedSectionHeader(
                                 title = "Fresh finds",
@@ -409,7 +421,7 @@ fun FeedScreen(
                         }
                     }
 
-                    if (isSectionVisible(HomeSection.JUMP_BACK_IN) && state.feedData.jumpBackIn.isNotEmpty()) {
+                    if (isSectionVisible(HomeSection.JUMP_BACK_IN) && (activeFilter == FeedCategoryFilter.ALL || activeFilter == FeedCategoryFilter.QUICK_PICKS) && state.feedData.jumpBackIn.isNotEmpty()) {
                         item(key = "jump_back_in") {
                             FeedSectionHeader(
                                 title = "Jump back in",
@@ -431,7 +443,7 @@ fun FeedScreen(
                         }
                     }
 
-                    if (isSectionVisible(HomeSection.MIXES) && state.feedData.mixes.isNotEmpty()) {
+                    if (isSectionVisible(HomeSection.MIXES) && (activeFilter == FeedCategoryFilter.ALL || activeFilter == FeedCategoryFilter.MIXES) && state.feedData.mixes.isNotEmpty()) {
                         item(key = "mixed_for_you") {
                             FeedSectionHeader(
                                 title = "Mixes to explore",
@@ -458,7 +470,7 @@ fun FeedScreen(
                         }
                     }
 
-                    if (isSectionVisible(HomeSection.SPOTLIGHT)) {
+                    if (isSectionVisible(HomeSection.SPOTLIGHT) && (activeFilter == FeedCategoryFilter.ALL || activeFilter == FeedCategoryFilter.SPOTLIGHT)) {
                     state.feedData.spotlight?.let { spotlight ->
                         item(key = "spotlight_hero") {
                             SpotlightHeroCard(
@@ -474,7 +486,7 @@ fun FeedScreen(
                     }
                     }
 
-                    if (isSectionVisible(HomeSection.TOP_ARTISTS) && individualTopArtists.isNotEmpty()) {
+                    if (isSectionVisible(HomeSection.TOP_ARTISTS) && (activeFilter == FeedCategoryFilter.ALL || activeFilter == FeedCategoryFilter.ARTISTS) && individualTopArtists.isNotEmpty()) {
                         item(key = "top_artists") {
                             FeedSectionHeader(
                                     title = "Artists for you",
@@ -501,7 +513,7 @@ fun FeedScreen(
                             }
                         }
 
-                    if (isSectionVisible(HomeSection.HEAVY_ROTATION) && state.feedData.heavyRotation.isNotEmpty()) {
+                    if (isSectionVisible(HomeSection.HEAVY_ROTATION) && (activeFilter == FeedCategoryFilter.ALL || activeFilter == FeedCategoryFilter.QUICK_PICKS) && state.feedData.heavyRotation.isNotEmpty()) {
                         item(key = "heavy_rotation") {
                             FeedSectionHeader(
                                 title = "Favorites to revisit",
@@ -527,7 +539,7 @@ fun FeedScreen(
                         }
                     }
 
-                    if (isSectionVisible(HomeSection.ALBUMS) && state.feedData.recentAlbums.isNotEmpty()) {
+                    if (isSectionVisible(HomeSection.ALBUMS) && (activeFilter == FeedCategoryFilter.ALL || activeFilter == FeedCategoryFilter.ALBUMS) && state.feedData.recentAlbums.isNotEmpty()) {
                         item(key = "albums_in_rotation") {
                             FeedSectionHeader(
                                 title = "Albums for you",
@@ -555,31 +567,6 @@ fun FeedScreen(
                         }
                     }
 
-                    if (isSectionVisible(HomeSection.CHARTS) && state.feedData.charts.isNotEmpty()) {
-                        item(key = "trending_charts") {
-                            FeedSectionHeader(
-                                title = "Trending now",
-                                subtitle = "Most popular right now · tap a rank to play",
-                                actionText = "Play all",
-                                actionIcon = Icons.Filled.PlayArrow,
-                                onActionClick = { viewModel.playTracksQueue(state.feedData.charts, 0, "Top Charts") },
-                                onShuffleClick = { viewModel.shuffleTracksQueue(state.feedData.charts, "Top Charts") },
-                            )
-                            LazyRow(
-                                contentPadding = PaddingValues(horizontal = 16.dp),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                modifier = Modifier.padding(top = 12.dp),
-                            ) {
-                                itemsIndexed(state.feedData.charts.take(15)) { index, track ->
-                                    ChartTrackCard(
-                                        rank = index + 1,
-                                        track = track,
-                                        onClick = { viewModel.playTracksQueue(state.feedData.charts, index, "Top Charts") },
-                                    )
-                                }
-                            }
-                        }
-                    }
 
                     if (isSectionVisible(HomeSection.NEW_RELEASES) && state.feedData.newReleases.isNotEmpty()) {
                         item(key = "new_releases") {
@@ -762,7 +749,7 @@ private fun InfiniteRadioHero(
                                 modifier = Modifier.size(12.dp),
                             )
                             Text(
-                                "MADE FOR YOU",
+                                "LASTWAVEX INSTANT RADIO",
                                 style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.1.sp),
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary,
@@ -989,162 +976,6 @@ private fun FeedFooter(lastUpdatedMillis: Long) {
     }
 }
 
-
-
-@Composable
-private fun QuickTilesGrid(
-    tiles: List<FeedQuickTile>,
-    onTileClick: (FeedQuickTile) -> Unit,
-) {
-    LazyRow(
-        modifier = Modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        items(tiles, key = { it.playlistId ?: it.localPlaylistId?.toString() ?: it.collection ?: it.title }) { tile ->
-            QuickTileCard(
-                tile = tile,
-                onClick = { onTileClick(tile) },
-            )
-        }
-    }
-}
-
-@Composable
-private fun QuickTileCard(
-    tile: FeedQuickTile,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit,
-) {
-    val liquidGlass = LocalLiquidGlass.current
-    val tileShape = RoundedCornerShape(18.dp)
-
-    // Per-type vibrant gradient pairs for the artwork/icon box matching modern expressive designs
-    val isLikedTile = tile.isLiked || tile.collection == "yt_liked" || tile.playlistId == "yt_liked"
-    val isMixTile = tile.collection == "radio" || tile.title.contains("Mix", ignoreCase = true)
-    val isNewReleasesTile = tile.collection == "new_releases"
-
-    val iconGradient = when {
-        isLikedTile -> Brush.linearGradient(
-            colors = listOf(Color(0xFFE91E63), Color(0xFFFF5252)),
-        )
-        isMixTile -> Brush.linearGradient(
-            colors = listOf(Color(0xFF7C4DFF), Color(0xFF536DFE)),
-        )
-        isNewReleasesTile -> Brush.linearGradient(
-            colors = listOf(Color(0xFFFF6D00), Color(0xFFFFAB00)),
-        )
-        else -> Brush.linearGradient(
-            colors = listOf(
-                MaterialTheme.colorScheme.primaryContainer,
-                MaterialTheme.colorScheme.surfaceContainerHighest,
-            ),
-        )
-    }
-
-    LiquidGlassSurface(
-        glassModifier = Modifier.liquidGlassChrome(tileShape, liquidGlass),
-        onClick = onClick,
-        shape = tileShape,
-        color = liquidGlassContainerColor(
-            when {
-                isLikedTile -> Color(0xFFE91E63).copy(alpha = 0.12f)
-                isMixTile -> Color(0xFF7C4DFF).copy(alpha = 0.12f)
-                isNewReleasesTile -> Color(0xFFFF6D00).copy(alpha = 0.12f)
-                else -> MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.75f)
-            },
-        ),
-        border = androidx.compose.foundation.BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
-        ),
-        modifier = modifier
-            .width(136.dp)
-            .height(148.dp),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(10.dp),
-            verticalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(1f)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(iconGradient),
-                contentAlignment = Alignment.Center,
-            ) {
-                if (!tile.artworkUrl.isNullOrBlank() && !isLikedTile && !isMixTile) {
-                    AsyncImage(
-                        model = tile.artworkUrl,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                } else if (isLikedTile) {
-                    Icon(
-                        Icons.Filled.Favorite,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(36.dp),
-                    )
-                } else if (isMixTile) {
-                    Icon(
-                        Icons.Filled.AutoAwesome,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(36.dp),
-                    )
-                } else if (isNewReleasesTile) {
-                    Icon(
-                        Icons.Filled.NewReleases,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(36.dp),
-                    )
-                } else {
-                    Icon(
-                        Icons.Filled.MusicNote,
-                        contentDescription = null,
-                        tint = Color.White.copy(alpha = 0.9f),
-                        modifier = Modifier.size(36.dp),
-                    )
-                }
-            }
-
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp, start = 2.dp, end = 2.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
-            ) {
-                Text(
-                    text = tile.title,
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        fontSize = 13.sp,
-                        lineHeight = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                    ),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                Text(
-                    text = tile.subtitle ?: if (tile.actionVideoId != null) "Track" else "Playlist",
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        fontSize = 11.sp,
-                        lineHeight = 14.sp,
-                    ),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
-                )
-            }
-        }
-    }
-}
 
 @Composable
 private fun QuickPicksRows(
@@ -1463,101 +1294,6 @@ private fun RecentTrackCard(
     }
 }
 
-@Composable
-private fun ChartTrackCard(
-    rank: Int,
-    track: YouTubeMusicTrack,
-    onClick: () -> Unit,
-) {
-    val isTop3 = rank <= 3
-    val haptics = LocalHapticFeedback.current
-    Surface(
-        onClick = {
-            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-            onClick()
-        },
-        shape = RoundedCornerShape(18.dp),
-        color = if (isTop3) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
-        else MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.7f),
-        border = androidx.compose.foundation.BorderStroke(
-            1.dp,
-            if (isTop3) MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
-            else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
-        ),
-        modifier = Modifier
-            .width(288.dp)
-            .height(76.dp),
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(start = 14.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
-        ) {
-            Text(
-                text = String.format("%02d", rank),
-                style = MaterialTheme.typography.titleLarge.copy(fontSize = 22.sp),
-                fontWeight = FontWeight.Black,
-                color = if (isTop3) MaterialTheme.colorScheme.primary
-                else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
-                modifier = Modifier.width(40.dp),
-            )
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                modifier = Modifier.size(56.dp),
-                onClick = {
-                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                    onClick()
-                },
-            ) {
-                Box(Modifier.fillMaxSize()) {
-                    ArtworkImage(
-                        name = track.title,
-                        artist = ArtistHelper.primaryArtist(track.artist),
-                        embeddedUrl = track.artworkUrl,
-                        fallbackIcon = Icons.Filled.TrendingUp,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(3.dp)
-                            .size(22.dp)
-                            .clip(CircleShape)
-                            .background(Color.Black.copy(alpha = 0.55f)),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            Icons.Filled.PlayArrow,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(14.dp),
-                        )
-                    }
-                }
-            }
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                Text(
-                    text = track.title,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                Text(
-                    text = ArtistHelper.primaryArtist(track.artist),
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-                )
-            }
-        }
-    }
-}
 
 @Composable
 private fun SpotlightHeroCard(

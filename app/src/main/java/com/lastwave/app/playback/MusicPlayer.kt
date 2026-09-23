@@ -57,7 +57,6 @@ import com.lastwave.app.data.plugin.ModulePlaybackResolver
 import com.lastwave.app.data.plugin.ModuleDrmFactory
 import com.lastwave.app.data.plugin.SegmentedDashBridge
 import com.lastwave.app.data.plugin.stableCacheKey
-import com.lastwave.app.widget.WidgetUpdater
 import kotlinx.coroutines.flow.first
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
@@ -1211,6 +1210,13 @@ class MusicPlayer @Inject constructor(
                 }
                 val index = (player.currentMediaItemIndex + 1).coerceAtMost(player.mediaItemCount)
                 player.addMediaItem(index, enriched.toMediaItem())
+                _state.update { snapshot ->
+                    val queue = snapshot.queue.toMutableList()
+                    val insertPos = (snapshot.currentIndex + 1).coerceIn(0, queue.size)
+                    queue.add(insertPos, enriched)
+                    snapshot.copy(queue = queue)
+                }
+                persistPlaybackSession()
             }
         }
     }
@@ -1224,6 +1230,8 @@ class MusicPlayer @Inject constructor(
                     persistPlaybackSession()
                 } else {
                     player.addMediaItem(enriched.toMediaItem())
+                    _state.update { it.copy(queue = it.queue + enriched) }
+                    persistPlaybackSession()
                 }
             }
         }
@@ -1969,7 +1977,6 @@ class MusicPlayer @Inject constructor(
         preparedStreams.clear()
         _state.value = MusicPlayerState()
         if (clearSession) clearPersistedPlaybackSession()
-        applicationScope.launch(Dispatchers.IO) { WidgetUpdater.clear(appContext) }
         appContext.stopService(Intent(appContext, MusicPlaybackService::class.java))
     }
     fun removeQueueItem(index: Int) = onMain {

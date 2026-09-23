@@ -63,6 +63,7 @@ data class SettingsScreenState(
     val recommendationExclusionCount: Int = 0,
     val toastMessage: String? = null,
     val showColorWheel: Boolean = false,
+    val showResetStatsConfirm: Boolean = false,
     val showClearAllConfirm: Boolean = false,
     val showRestoreConfirm: Boolean = false,
     val pendingRestoreContent: String? = null,
@@ -94,6 +95,7 @@ class SettingsViewModel @Inject constructor(
     private val ytMusicPreferences: com.lastwave.app.data.ytmusic.YtMusicPreferences,
     private val ytMusicLibraryManager: com.lastwave.app.data.ytmusic.YtMusicLibraryManager,
     private val downloadedTrackDao: com.lastwave.app.data.local.db.DownloadedTrackDao,
+    private val songPlayStatsRepository: com.lastwave.app.data.repository.SongPlayStatsRepository,
     private val appLocaleManager: com.lastwave.app.util.AppLocaleManager,
     val playlistImportManager: com.lastwave.app.data.playlist.PlaylistImportManager,
     val innerTube: com.lastwave.app.data.music.InnerTubeMusicApi,
@@ -468,6 +470,15 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun requestResetStats() = _uiState.update { it.copy(showResetStatsConfirm = true) }
+    fun dismissResetStatsConfirm() = _uiState.update { it.copy(showResetStatsConfirm = false) }
+    fun confirmResetStats() {
+        launchSettingsAction("reset listening statistics") {
+            songPlayStatsRepository.resetStats()
+            _uiState.update { it.copy(showResetStatsConfirm = false, toastMessage = "Listening statistics reset") }
+        }
+    }
+
     fun requestClearAllData() = _uiState.update { it.copy(showClearAllConfirm = true) }
     fun dismissClearAllConfirm() = _uiState.update { it.copy(showClearAllConfirm = false) }
     fun confirmClearAllData(onComplete: () -> Unit) {
@@ -475,6 +486,7 @@ class SettingsViewModel @Inject constructor(
             sessionPreferences.clearAll()
             discoverRepository.clearRecommendationExclusions()
             playlistRepository.clearAll()
+            songPlayStatsRepository.resetStats()
             _uiState.update { it.copy(showClearAllConfirm = false) }
             onComplete()
         }
@@ -635,10 +647,10 @@ class SettingsViewModel @Inject constructor(
     // ── Diagnostics ──
 
     /** Builds a troubleshooting report (app/device info, notification-listener
-     *  grant, widget snapshot + placed-widget count, and this process's own
-     *  logcat — readable without any permission) and opens the system share
-     *  sheet for it via the existing FileProvider export path. Runs off the
-     *  main thread; failures surface as a toast through [launchSettingsAction]. */
+     *  grant, and this process's own logcat — readable without any permission)
+     *  and opens the system share sheet for it via the existing FileProvider
+     *  export path. Runs off the main thread; failures surface as a toast
+     *  through [launchSettingsAction]. */
     fun exportDiagnostics() {
         launchSettingsAction("export diagnostics") {
             val report = withContext(Dispatchers.IO) { buildDiagnosticsReport() }
@@ -669,21 +681,6 @@ class SettingsViewModel @Inject constructor(
                 .contains(context.packageName)
         }.getOrDefault(false)
         sb.appendLine("notificationListenerAccess=$hasNotificationAccess")
-        val snapshot = runCatching { com.lastwave.app.widget.NowPlayingWidgetSnapshot.read(context) }.getOrNull()
-        if (snapshot == null) {
-            sb.appendLine("widgetSnapshot=<unreadable>")
-        } else {
-            val artExists = snapshot.artPath?.let { java.io.File(it).exists() } ?: false
-            sb.appendLine("widgetSnapshot: hasSession=${snapshot.hasSession} isPlaying=${snapshot.isPlaying}")
-            sb.appendLine("  title=${snapshot.title} artist=${snapshot.artist} album=${snapshot.album}")
-            sb.appendLine("  sourceApp=${snapshot.sourceApp} sourcePackage=${snapshot.sourcePackage}")
-            sb.appendLine("  artPath=${snapshot.artPath} artExists=$artExists")
-        }
-        val placedWidgets = runCatching {
-            androidx.glance.appwidget.GlanceAppWidgetManager(context)
-                .getGlanceIds(com.lastwave.app.widget.NowPlayingWidget::class.java).size
-        }.getOrNull()
-        sb.appendLine("placedGlanceWidgets=${placedWidgets ?: "<lookup failed>"}")
         sb.appendLine("---- logcat (this process) ----")
         sb.append(readOwnLogcat())
         sb.appendLine("---- end ----")

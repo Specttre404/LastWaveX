@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">LastWave</string>
-    <string name="widget_name">Pemutar LastWave</string>
-    <string name="widget_description">Sampul, detail lagu, dan kontrol pemutaran untuk semua aplikasi media</string>
+    <string name="app_name">LASTWAVEX</string>
 
     <string name="nav_feed">Beranda</string>
     <string name="nav_stats">Statistik</string>

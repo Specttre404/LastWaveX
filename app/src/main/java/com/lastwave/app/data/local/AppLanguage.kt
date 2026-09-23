@@ -30,7 +30,8 @@ enum class AppLanguage(val tag: String) {
     FRENCH("fr"),
     JAPANESE("ja"),
     KOREAN("ko"),
-    ARABIC("ar");
+    ARABIC("ar"),
+    BENGALI("bn");
 
     companion object {
         /** Synchronous mirror read by `attachBaseContext` (DataStore is async). */
@@ -58,6 +59,7 @@ enum class AppLanguage(val tag: String) {
             when (cleaned.lowercase()) {
                 "zh-hans", "zh-cn", "zh-sg" -> return CHINESE_SIMPLIFIED
                 "in" -> return INDONESIAN
+                "bn", "bn-in", "bn-bd" -> return BENGALI
                 "zh-hant", "zh-tw", "zh-hk", "zh-mo" -> return SYSTEM
                 "iw", "he", "ji", "yi" -> return SYSTEM
             }
@@ -89,6 +91,7 @@ fun AppLanguage.nativeDisplayName(): String = when (this) {
     AppLanguage.JAPANESE -> "日本語"
     AppLanguage.KOREAN -> "한국어"
     AppLanguage.ARABIC -> "العربية"
+    AppLanguage.BENGALI -> "বাংলা"
 }
 
 /** Short subtitle shown under the selected language row. */
@@ -107,6 +110,7 @@ fun AppLanguage.selectorSubtitle(): String = when (this) {
     AppLanguage.JAPANESE -> "日本語"
     AppLanguage.KOREAN -> "한국어"
     AppLanguage.ARABIC -> "العربية"
+    AppLanguage.BENGALI -> "বাংলা"
 }
 
 /**

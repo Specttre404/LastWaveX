@@ -60,4 +60,9 @@ class SongPlayStatsRepository @Inject constructor(
 
     suspend fun skipCountFor(title: String, artist: String): Int =
         dao.find(trackKeyOf(title, artist))?.skipCount ?: 0
+
+    /** Clears all stored play counts, listened durations, and skip records. */
+    suspend fun resetStats() {
+        dao.clearAll()
+    }
 }

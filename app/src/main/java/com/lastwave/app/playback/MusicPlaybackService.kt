@@ -42,8 +42,6 @@ import com.lastwave.app.data.local.ScrobblerSettings
 import com.lastwave.app.data.repository.ScrobbleRepository
 import com.lastwave.app.data.repository.ThemeRepository
 import com.lastwave.app.service.ScrobbleDebugLog
-import com.lastwave.app.widget.ActiveMediaSessionHolder
-import com.lastwave.app.widget.WidgetUpdater
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
@@ -55,6 +53,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -94,6 +93,8 @@ class MusicPlaybackService : MediaBrowserServiceCompat() {
     @Inject lateinit var themeRepository: ThemeRepository
     @Inject lateinit var artworkRepository: com.lastwave.app.data.artwork.ArtworkRepository
     @Inject lateinit var androidAutoLibrary: AndroidAutoMediaLibrary
+    @Inject lateinit var settingsPreferences: com.lastwave.app.data.local.SettingsPreferences
+    @Inject lateinit var playlistRepository: com.lastwave.app.data.playlist.PlaylistRepository
 
     // SupervisorJob stops sibling failure propagation; the handler below
     // additionally stops an unexpected exception in any fire-and-forget
@@ -132,7 +133,6 @@ class MusicPlaybackService : MediaBrowserServiceCompat() {
     private var artworkUrl: String? = null
     private var artworkBitmap: Bitmap? = null
     private var notificationSignature = ""
-    private var widgetSignature = ""
     private var systemStateSignature = ""
     private var legacyBroadcastSignature = ""
     private var sessionQueueSignature = ""
@@ -214,14 +214,12 @@ class MusicPlaybackService : MediaBrowserServiceCompat() {
             sessionToken = session.sessionToken
             platformSessionToken = session.sessionToken.token as? MediaSession.Token
             ownController = platformSessionToken?.let { token -> MediaController(this, token) }
-            ActiveMediaSessionHolder.ownToken = platformSessionToken
         }.onFailure { error ->
             android.util.Log.e("MusicPlaybackService", "System media integration unavailable; continuing audio-only", error)
             runCatching { mediaSession?.release() }
             mediaSession = null
             platformSessionToken = null
             ownController = null
-            ActiveMediaSessionHolder.ownToken = null
         }
         notificationPalette = NotificationPalette.from(themeRepository.uiState.value.colorScheme)
         scope.launch { scrobblerPreferences.settings.collect { settings = it } }
@@ -251,7 +249,6 @@ class MusicPlaybackService : MediaBrowserServiceCompat() {
                     requestArtwork(state.current)
                     publishSystemState(state)
                     publishNotification(state)
-                    publishWidget(state)
                     publishCarBrowseState(state)
                     detectTransition(state)
                 }
@@ -503,7 +500,7 @@ class MusicPlaybackService : MediaBrowserServiceCompat() {
             } else {
                 @Suppress("DEPRECATION") Notification.Builder(this)
             }.setSmallIcon(R.drawable.ic_launcher_logo)
-             .setContentTitle(musicPlayer.state.value.current?.title ?: "LastWave")
+             .setContentTitle(musicPlayer.state.value.current?.title ?: "LASTWAVEX")
              .setContentText(musicPlayer.state.value.current?.artist ?: "Music player")
              .build()
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -579,8 +576,6 @@ class MusicPlaybackService : MediaBrowserServiceCompat() {
         // Let KWGT-style listeners clear their cached track on service death.
         runCatching { sendBroadcast(Intent("com.android.music.playbackcomplete")) }
         platformSessionToken = null
-        ownController?.let { controller -> ActiveMediaSessionHolder.clear(controller) }
-        ActiveMediaSessionHolder.clearToken(releasedToken)
         scope.cancel()
         super.onDestroy()
     }
@@ -771,13 +766,7 @@ class MusicPlaybackService : MediaBrowserServiceCompat() {
 
     private fun publishSystemState(state: MusicPlayerState) {
         val track = state.current
-        // Transport-control target is cheap and must stay fresh every emission.
-        val active = ActiveMediaSessionHolder.controller
-        val otherAppIsPlaying = active?.packageName != packageName &&
-            active?.playbackState?.state == PlatformPlaybackState.STATE_PLAYING
-        if (track != null && (state.isPlaying || active == null || !otherAppIsPlaying)) {
-            ActiveMediaSessionHolder.controller = ownController
-        }
+
 
         // setMetadata/setPlaybackState are binder IPC into system_server. The
         // player state emits ~4x/second while playing; republishing on every
@@ -897,28 +886,6 @@ class MusicPlaybackService : MediaBrowserServiceCompat() {
         }
     }
 
-    private fun publishWidget(state: MusicPlayerState) {
-        val track = state.current ?: return
-        val active = ActiveMediaSessionHolder.controller
-        val otherAppIsPlaying = active?.packageName != packageName &&
-            active?.playbackState?.state == PlatformPlaybackState.STATE_PLAYING
-        if (!state.isPlaying && otherAppIsPlaying) return
-        val signature = "${track.title}|${track.artist}|${state.isPlaying}|$artworkUrl|${artworkBitmap != null}"
-        if (signature == widgetSignature) return
-        widgetSignature = signature
-        scope.launch(Dispatchers.IO) {
-            WidgetUpdater.publish(
-                context = this@MusicPlaybackService,
-                title = track.title,
-                artist = track.artist,
-                album = track.album,
-                sourceApp = getString(R.string.app_name),
-                sourcePackage = packageName,
-                art = artworkBitmap,
-                isPlaying = state.isPlaying,
-            )
-        }
-    }
 
     private fun publishNotification(state: MusicPlayerState, force: Boolean = false) {
         val track = state.current
@@ -1016,8 +983,6 @@ class MusicPlaybackService : MediaBrowserServiceCompat() {
             val state = musicPlayer.state.value
             publishSystemState(state)
             publishNotification(state, force = true)
-            widgetSignature = ""
-            publishWidget(state)
         }
     }
 
@@ -1057,7 +1022,7 @@ class MusicPlaybackService : MediaBrowserServiceCompat() {
 
             return builder
                 .setSmallIcon(R.drawable.ic_launcher_logo)
-                .setContentTitle(state.current?.title ?: "LastWave")
+                .setContentTitle(state.current?.title ?: "LASTWAVEX")
                 .setContentText(state.current?.artist ?: "Music player")
                 .setSubText(state.current?.album)
                 .setContentIntent(openAppPendingIntent())
@@ -1119,7 +1084,7 @@ class MusicPlaybackService : MediaBrowserServiceCompat() {
 
         return builder
             .setSmallIcon(R.drawable.ic_launcher_logo)
-            .setContentTitle(state.current?.title ?: "LastWave")
+            .setContentTitle(state.current?.title ?: "LASTWAVEX")
             .setContentText(state.current?.artist ?: "Music player")
             .setSubText(state.current?.album)
             .setContentIntent(openAppPendingIntent())
@@ -1168,7 +1133,7 @@ class MusicPlaybackService : MediaBrowserServiceCompat() {
         setImageViewBitmap(R.id.notification_background, glassBackground(widthDp, heightDp, palette))
         if (art != null) setImageViewBitmap(R.id.notification_artwork, scaledBitmap(art, 192))
         else setImageViewResource(R.id.notification_artwork, R.mipmap.ic_launcher)
-        setTextViewText(R.id.notification_title, state.current?.title ?: "LastWave")
+        setTextViewText(R.id.notification_title, state.current?.title ?: "LASTWAVEX")
         setTextViewText(R.id.notification_artist, state.current?.artist ?: "Music player")
         setTextColor(R.id.notification_title, palette.onSurface)
         setTextColor(R.id.notification_artist, palette.onSurfaceVariant)
@@ -1272,7 +1237,7 @@ class MusicPlaybackService : MediaBrowserServiceCompat() {
         runCatching {
             getSystemService(NotificationManager::class.java)?.createNotificationChannel(
                 NotificationChannel(CHANNEL_ID, "Music playback", NotificationManager.IMPORTANCE_LOW).apply {
-                    description = "Native LastWave playback controls"
+                    description = "Native LASTWAVEX playback controls"
                     setShowBadge(false)
                 },
             )

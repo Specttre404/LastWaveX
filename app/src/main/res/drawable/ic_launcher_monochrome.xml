@@ -1,0 +1,16 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- LASTWAVEX Prism Signal Mark (Monochrome Layer for Android 13+ Themed Icons) -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M 32,28 L 58,54 L 32,80 L 23,71 L 41,54 L 23,37 Z" />
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M 76,28 L 50,54 L 76,80 L 85,71 L 67,54 L 85,37 Z" />
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M 54,42 L 66,54 L 54,66 L 42,54 Z" />
+</vector>

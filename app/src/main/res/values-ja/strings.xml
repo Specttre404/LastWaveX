@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">LastWave</string>
-    <string name="widget_name">LastWave プレーヤー</string>
-    <string name="widget_description">すべてのメディアアプリのジャケット、曲情報、再生コントロール</string>
+    <string name="app_name">LASTWAVEX</string>
 
     <string name="nav_feed">フィード</string>
     <string name="nav_stats">統計</string>

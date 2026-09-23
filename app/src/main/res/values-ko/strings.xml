@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">LastWave</string>
-    <string name="widget_name">LastWave 플레이어</string>
-    <string name="widget_description">모든 미디어 앱의 앨범아트, 곡 정보 및 재생 컨트롤</string>
+    <string name="app_name">LASTWAVEX</string>
 
     <string name="nav_feed">피드</string>
     <string name="nav_stats">통계</string>

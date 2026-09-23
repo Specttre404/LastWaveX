@@ -6,7 +6,6 @@ import androidx.lifecycle.viewModelScope
 import com.lastwave.app.data.feed.FeedMix
 import com.lastwave.app.data.feed.FeedArtist
 import com.lastwave.app.data.feed.FeedData
-import com.lastwave.app.data.feed.FeedQuickTile
 import com.lastwave.app.data.feed.FeedRepository
 import com.lastwave.app.data.generate.GeneratedTrack
 import com.lastwave.app.data.generate.youtubeVideoIdOrNull
@@ -266,19 +265,6 @@ class FeedViewModel @Inject constructor(
                 musicPlayer.playQueue(playable, startIndex = 0, sourceLabel = summary.title)
             }
         }
-    }
-
-    fun handleQuickTileClick(tile: FeedQuickTile) {
-        val videoId = tile.actionVideoId ?: return
-        musicPlayer.play(
-            PlayableTrack(
-                title = tile.title,
-                artist = tile.subtitle ?: "",
-                artworkUrl = tile.artworkUrl,
-                videoId = videoId.takeIf(String::isNotBlank),
-            ),
-            sourceLabel = "Quick Picks",
-        )
     }
 
     private fun YouTubeMusicTrack.toPlayableTrack(): PlayableTrack = PlayableTrack(
