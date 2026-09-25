@@ -1934,27 +1934,31 @@ class MusicPlayer @Inject constructor(
         _state.update { it.copy(repeatMode = supportedMode) }
         persistPlaybackSession()
     }
-    fun cycleSpeed() = onMain {
+    fun setPlaybackSpeed(speed: Float) = onMain {
+        val targetSpeed = speed.coerceIn(0.5f, 2.0f)
         if (isCasting) {
-            val next = when {
-                _state.value.speed < 1f -> 1f
-                _state.value.speed < 1.25f -> 1.25f
-                _state.value.speed < 1.5f -> 1.5f
-                _state.value.speed < 2f -> 2f
-                else -> 0.75f
-            }
-            castPlayback?.setSpeed(next)
+            castPlayback?.setSpeed(targetSpeed)
+            _state.update { it.copy(speed = targetSpeed) }
             return@onMain
         }
         cancelCrossfade()
+        if (playerDelegate.isInitialized()) {
+            player.setPlaybackSpeed(targetSpeed)
+        }
+        _state.update { it.copy(speed = targetSpeed) }
+        persistPlaybackSession()
+    }
+
+    fun cycleSpeed() = onMain {
+        val current = if (isCasting) _state.value.speed else if (playerDelegate.isInitialized()) player.playbackParameters.speed else 1f
         val next = when {
-            player.playbackParameters.speed < 1f -> 1f
-            player.playbackParameters.speed < 1.25f -> 1.25f
-            player.playbackParameters.speed < 1.5f -> 1.5f
-            player.playbackParameters.speed < 2f -> 2f
+            current < 1f -> 1f
+            current < 1.25f -> 1.25f
+            current < 1.5f -> 1.5f
+            current < 2f -> 2f
             else -> 0.75f
         }
-        player.setPlaybackSpeed(next)
+        setPlaybackSpeed(next)
     }
     fun cycleSleepTimer() = onMain {
         setSleepTimerMinutes(SLEEP_TIMER_MINUTES[(sleepTimerStep + 1) % SLEEP_TIMER_MINUTES.size])
