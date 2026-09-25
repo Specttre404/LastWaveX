@@ -60,6 +60,11 @@ Powered by the YouTube Music catalog and Last.fm scrobbling infrastructure, LAST
 - **LRCLIB Synced Lyrics:** Millisecond-synchronized karaoke lyrics with customizable animation motions.
 - **Material 3 Expressive UI:** Dynamic wallpaper theming, album art accent color extraction, fluid card animations, and tactile haptic feedback.
 
+### 🤖 LASTWAVEX AI Assistant
+- **Dual Mode Architecture:** Free mode using Firebase AI Logic + Gemini 2.5 Flash free tier, plus BYOK (Bring Your Own Key) for Gemini API, OpenAI API, and Custom OpenAI-Compatible endpoints.
+- **Hardware-Backed Keystore Security:** Secrets are encrypted locally using Android Keystore AES-256-GCM cipher encryption. Plaintext keys are never saved in preferences, database, or logs.
+- **App-Wide Guidance & Context Awareness:** Accessible via top header, Player, or Settings → AI. Provides tailored audio explanations, troubleshooting diagnostics, and interactive proposed settings confirmation cards.
+
 ### 📥 Storage & Export
 - **Offline Downloader:** One-tap track downloads saved to local storage with embedded cover art and synchronized `.lrc` files.
 - **Playlist Management & CSV Export:** Create local playlists, import public links, and export playlist metadata to UTF-8 CSV files.

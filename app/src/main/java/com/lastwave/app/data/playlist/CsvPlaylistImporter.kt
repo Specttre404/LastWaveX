@@ -130,14 +130,18 @@ class CsvPlaylistImporter @Inject constructor(
             .replace(Regex("[^\\p{L}\\p{M}\\p{N}]+"), " ").trim()
 
     internal fun parseTracks(text: String, filename: String): List<CsvRawTrack> {
-        val lines = text.lineSequence().map(String::trim).filter(String::isNotBlank).toList()
+        val normalizedText = text.replace("\r\n", "\n").replace('\r', '\n')
+        val lines = normalizedText.lineSequence().map(String::trim).filter(String::isNotBlank).toList()
         if (lines.isEmpty()) return emptyList()
         if (filename.endsWith(".m3u", true) || filename.endsWith(".m3u8", true) || lines.first().equals("#EXTM3U", true)) {
-            return parseM3u(text.lineSequence().map(String::trim).toList())
+            return parseM3u(normalizedText.lineSequence().map(String::trim).toList())
         }
-        if (filename.endsWith(".txt", true) && lines.none { '\t' in it } &&
-            lines.first().split(',', ';').map(::normalize).none { it in TITLE_HEADERS || it in ARTIST_HEADERS || it in URL_HEADERS }) {
-            return lines.map(::parseTextTrack)
+        if (filename.endsWith(".txt", true) && lines.none { '\t' in it }) {
+            val firstHeaders = lines.first().split(',', ';').map(::normalize)
+            val hasTitleHeader = firstHeaders.any { it in TITLE_HEADERS || it in URL_HEADERS }
+            if (!hasTitleHeader) {
+                return lines.map(::parseTextTrack)
+            }
         }
         val delimiter = listOf(',', ';', '\t').maxBy { candidate ->
             parseRecords(text, candidate).take(5).sumOf { (it.size - 1).coerceAtLeast(0) }

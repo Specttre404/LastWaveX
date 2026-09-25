@@ -197,6 +197,8 @@ fun FeedScreen(
         }
     }
 
+    var showAiSheet by remember { mutableStateOf(false) }
+
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.TopCenter,
@@ -209,6 +211,7 @@ fun FeedScreen(
             ExpressiveHeader(
                 title = "LASTWAVEX",
                 actions = {
+                    HeaderActionIcon(Icons.Filled.AutoAwesome, "LASTWAVEX AI", { showAiSheet = true })
                     HeaderActionIcon(Icons.Filled.TrendingUp, "Charts & Rankings", onOpenCharts)
                     HeaderActionIcon(Icons.Filled.Explore, "Discover Radar", onOpenDiscover)
                     HeaderActionIcon(Icons.Filled.Search, "Search", onOpenSearch)
@@ -657,6 +660,10 @@ fun FeedScreen(
             playbackSourceLabel = "Home",
             onDismiss = { menuTrack = null },
         )
+    }
+
+    if (showAiSheet) {
+        com.lastwave.app.ui.ai.LastWaveAiSheet(onDismiss = { showAiSheet = false })
     }
 }
 

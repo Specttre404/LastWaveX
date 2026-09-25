@@ -1363,22 +1363,19 @@ class AudioTagWriter @Inject constructor(
             val boxSize = when (size32) {
                 0L -> (bytes.size - offset).toLong()
                 1L -> {
-                    if (offset + 16 > bytes.size) return bytes
-                    readBeUInt64(bytes, offset + 8) ?: return bytes
+                    if (offset + 16 > bytes.size) break
+                    readBeUInt64(bytes, offset + 8) ?: break
                 }
                 else -> size32
             }
-            if (boxSize < 8 || offset + boxSize > bytes.size) return bytes
+            if (boxSize < 8 || offset + boxSize > bytes.size) break
             val boxLen = boxSize.toInt()
             if (type !in boxTypes) {
                 out.write(bytes, offset, boxLen)
             }
             offset += boxLen
         }
-        if (offset == bytes.size) {
-            return out.toByteArray()
-        }
-        return bytes
+        return out.toByteArray()
     }
 
     private fun patchMp4ChunkOffsets(

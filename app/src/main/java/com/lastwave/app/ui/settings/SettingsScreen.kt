@@ -263,6 +263,7 @@ fun SettingsScreen(
     onOpenYouTubeImport: () -> Unit = {},
     onOpenYouTubeLogin: () -> Unit = {},
     onOpenExternalImport: () -> Unit = {},
+    onOpenAiSettings: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val session by viewModel.session.collectAsStateWithLifecycle()
@@ -364,7 +365,7 @@ fun SettingsScreen(
         ) {
         ExpressiveHeader(title = stringResource(R.string.settings), onBack = onBack)
 
-        val categoryTitles = listOf("Accounts", "Audio & Playback", "Visuals & Themes", "Data & About")
+        val categoryTitles = listOf("Everyday", "Audio & Engine", "Integrations", "Personalization", "AI Assistant", "Diagnostics")
         val pagerState = rememberPagerState(pageCount = { categoryTitles.size })
         val scope = rememberCoroutineScope()
 
@@ -437,6 +438,23 @@ fun SettingsScreen(
                             }
                         },
                     )
+                }
+            }
+
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    SectionLabel("LASTWAVEX AI Assistant")
+                    SettingsGroup(rowCount = 1) { _, position ->
+                        SettingsActionCard(
+                            icon = Icons.Filled.AutoAwesome,
+                            iconContainer = MaterialTheme.colorScheme.primaryContainer,
+                            iconTint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            title = "LASTWAVEX AI Settings & Assistant",
+                            subtitle = "Configure Free / BYOK modes, expertise level & credentials",
+                            onClick = onOpenAiSettings,
+                            position = position,
+                        )
+                    }
                 }
             }
 

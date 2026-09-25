@@ -6,6 +6,7 @@ import okhttp3.Request
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.Ignore
 import org.junit.Test
 import java.util.concurrent.TimeUnit
 
@@ -41,6 +42,7 @@ class LosslessMusicApiLiveTest {
     }
 
     @Test
+    @Ignore("Live network API test — run in connected integration suite")
     fun testDoZindigiByDikzYouTubeFormat() = runBlocking {
         println("\n=== KOTLIN TEST: 'Do Zindagi | Dikz (Official Audio)' by 'Dikz - Topic' ===")
         val stream = api.resolveStream(
@@ -54,6 +56,7 @@ class LosslessMusicApiLiveTest {
     }
 
     @Test
+    @Ignore("Live network API test — run in connected integration suite")
     fun testAyanokojiByDikzYouTubeFormat() = runBlocking {
         println("\n=== KOTLIN TEST: 'Ayanokoji | Dikz' by 'Dikz - Topic' ===")
         val stream = api.resolveStream(
@@ -67,6 +70,7 @@ class LosslessMusicApiLiveTest {
     }
 
     @Test
+    @Ignore("Live network API test — run in connected integration suite")
     fun testGojoVsSakunaByDikzYouTubeFormat() = runBlocking {
         println("\n=== KOTLIN TEST: 'Gojo vs Sakuna Rap' by 'Dikz' ===")
         val stream = api.resolveStream(
@@ -80,6 +84,7 @@ class LosslessMusicApiLiveTest {
     }
 
     @Test
+    @Ignore("Live network API test — run in connected integration suite")
     fun testDieWithASmilePureQobuz() = runBlocking {
         println("\n=== KOTLIN TEST: 'Die With A Smile' by 'Lady Gaga & Bruno Mars' ===")
         val stream = api.resolveStream(

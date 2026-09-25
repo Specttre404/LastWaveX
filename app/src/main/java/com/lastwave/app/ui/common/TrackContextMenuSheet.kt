@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Album
 import androidx.compose.material.icons.filled.CheckCircle
@@ -42,6 +43,7 @@ import androidx.compose.material.icons.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material.icons.filled.QueuePlayNext
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Sell
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.ThumbDown
@@ -52,7 +54,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
@@ -61,8 +65,10 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
@@ -86,6 +92,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lastwave.app.ui.generate.MixLauncher
+import com.lastwave.app.playback.MusicPlayer
 import com.lastwave.app.playback.PlayableTrack
 import com.lastwave.app.ui.navigation.ArtistAlbumNavigator
 import com.lastwave.app.ui.player.LocalMusicPlayer
@@ -307,50 +314,9 @@ fun TrackContextMenuSheet(
     }
 
     if (showTimerDialog) {
-        var customMinutes by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf("") }
-        val customDuration = customMinutes.toIntOrNull()?.takeIf { it > 0 }
-        AlertDialog(
-            onDismissRequest = { showTimerDialog = false },
-            title = { Text("Sleep timer") },
-            text = {
-                Column {
-                    listOf(0, 15, 30, 60).forEach { minutes ->
-                        TextButton(
-                            onClick = {
-                                musicPlayer.setSleepTimerMinutes(minutes)
-                                showTimerDialog = false
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                        ) { Text(if (minutes == 0) "Off" else "$minutes minutes") }
-                    }
-                    OutlinedTextField(
-                        value = customMinutes,
-                        onValueChange = { customMinutes = it },
-                        label = { Text("Custom time (minutes)") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true,
-                        isError = customMinutes.isNotEmpty() && customDuration == null,
-                        supportingText = {
-                            if (customMinutes.isNotEmpty() && customDuration == null) {
-                                Text("Enter a positive whole number")
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    enabled = customDuration != null,
-                    onClick = {
-                        customDuration?.let(musicPlayer::setSleepTimerMinutes)
-                        showTimerDialog = false
-                    },
-                ) { Text("Set timer") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showTimerDialog = false }) { Text("Cancel") }
-            },
+        SleepTimerDialog(
+            musicPlayer = musicPlayer,
+            onDismiss = { showTimerDialog = false },
         )
     }
 
@@ -758,4 +724,243 @@ private fun MenuInfoRow(
             }
         }
     }
+}
+
+@Composable
+private fun SleepTimerDialog(
+    musicPlayer: MusicPlayer,
+    onDismiss: () -> Unit,
+) {
+    val playerState by musicPlayer.state.collectAsStateWithLifecycle()
+    var customMinutesText by rememberSaveable { mutableStateOf("") }
+    val customMinutes = customMinutesText.toIntOrNull()?.takeIf { it > 0 }
+    var selectedTrackCount by rememberSaveable { mutableIntStateOf(3) }
+
+    val activeRemainingMs = playerState.sleepTimerRemainingMs
+    val activeRemainingTracks = playerState.sleepTimerRemainingTracks
+    val isTimerActive = (activeRemainingMs != null && activeRemainingMs > 0) || activeRemainingTracks != null
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Sleep timer",
+                style = MaterialTheme.typography.headlineSmall,
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                if (isTimerActive) {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        ),
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Timer Active",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                                val statusText = when {
+                                    activeRemainingMs != null -> {
+                                        val mins = (activeRemainingMs / 60_000L) + 1
+                                        "~$mins minutes remaining"
+                                    }
+                                    activeRemainingTracks != null -> {
+                                        if (activeRemainingTracks == 1) "Stop after current track ends"
+                                        else "Stop after $activeRemainingTracks tracks"
+                                    }
+                                    else -> ""
+                                }
+                                Text(
+                                    text = statusText,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                            }
+                            TextButton(
+                                onClick = {
+                                    musicPlayer.clearSleepTimer()
+                                },
+                            ) {
+                                Text("Turn off")
+                            }
+                        }
+                    }
+                }
+
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Stop by Tracks",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+
+                    Surface(
+                        onClick = {
+                            musicPlayer.setSleepTimerAfterCurrentTrack()
+                            onDismiss()
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = "Stop after current track ends",
+                                style = MaterialTheme.typography.bodyLarge,
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Text(
+                                text = "Stop after N tracks",
+                                style = MaterialTheme.typography.bodyLarge,
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    IconButton(
+                                        onClick = { if (selectedTrackCount > 1) selectedTrackCount-- },
+                                        enabled = selectedTrackCount > 1,
+                                    ) {
+                                        Icon(Icons.Filled.Remove, contentDescription = "Decrease track count")
+                                    }
+                                    Text(
+                                        text = "$selectedTrackCount track${if (selectedTrackCount > 1) "s" else ""}",
+                                        style = MaterialTheme.typography.titleMedium,
+                                    )
+                                    IconButton(
+                                        onClick = { if (selectedTrackCount < 10) selectedTrackCount++ },
+                                        enabled = selectedTrackCount < 10,
+                                    ) {
+                                        Icon(Icons.Filled.Add, contentDescription = "Increase track count")
+                                    }
+                                }
+                                TextButton(
+                                    onClick = {
+                                        musicPlayer.setSleepTimerTracks(selectedTrackCount)
+                                        onDismiss()
+                                    },
+                                ) {
+                                    Text("Set")
+                                }
+                            }
+                        }
+                    }
+                }
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Stop by Time",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        listOf(15, 30, 60).forEach { minutes ->
+                            Surface(
+                                onClick = {
+                                    musicPlayer.setSleepTimerMinutes(minutes)
+                                    onDismiss()
+                                },
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier.padding(vertical = 12.dp),
+                                ) {
+                                    Text(
+                                        text = "$minutes min",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    OutlinedTextField(
+                        value = customMinutesText,
+                        onValueChange = { customMinutesText = it },
+                        label = { Text("Custom minutes") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        isError = customMinutesText.isNotEmpty() && customMinutes == null,
+                        supportingText = {
+                            if (customMinutesText.isNotEmpty() && customMinutes == null) {
+                                Text("Enter a positive number")
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            if (customMinutes != null) {
+                TextButton(
+                    onClick = {
+                        musicPlayer.setSleepTimerMinutes(customMinutes)
+                        onDismiss()
+                    },
+                ) {
+                    Text("Set custom time")
+                }
+            } else {
+                TextButton(onClick = { musicPlayer.clearSleepTimer(); onDismiss() }) {
+                    Text("Turn off timer")
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        },
+    )
 }

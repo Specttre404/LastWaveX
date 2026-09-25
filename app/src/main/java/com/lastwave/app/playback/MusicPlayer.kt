@@ -1,3 +1,5 @@
+@file:OptIn(UnstableApi::class)
+
 package com.lastwave.app.playback
 
 import android.content.Context
@@ -141,6 +143,7 @@ data class MusicPlayerState(
     val bitDepth: Int? = null,
     val samplingRateKHz: Double? = null,
     val sleepTimerRemainingMs: Long? = null,
+    val sleepTimerRemainingTracks: Int? = null,
     val error: String? = null,
 )
 
@@ -291,6 +294,7 @@ class MusicPlayer @Inject constructor(
     private val unavailableMediaIds = mutableSetOf<String>()
     private var sleepTimerDeadlineMs: Long? = null
     private var sleepTimerStep = 0
+    private var sleepTimerRemainingTracks: Int? = null
     @Volatile
     private var crossfadeEnabled = false
     @Volatile
@@ -436,6 +440,18 @@ class MusicPlayer @Inject constructor(
             if (isCasting) return
             recordLocalListenSignal(reason)
             if (mediaItem != null) {
+                val currentTracks = sleepTimerRemainingTracks
+                if (currentTracks != null) {
+                    val nextTracks = currentTracks - 1
+                    if (nextTracks <= 0) {
+                        sleepTimerRemainingTracks = null
+                        _state.update { it.copy(sleepTimerRemainingTracks = null) }
+                        player.pause()
+                    } else {
+                        sleepTimerRemainingTracks = nextTracks
+                        _state.update { it.copy(sleepTimerRemainingTracks = nextTracks) }
+                    }
+                }
                 losslessBypassMediaIds.retainAll(setOf(mediaItem.mediaId))
                 if (retryMediaId != mediaItem.mediaId) {
                     retryMediaId = mediaItem.mediaId
@@ -833,7 +849,7 @@ class MusicPlayer @Inject constructor(
                         sleepTimerStep = 0
                         pause()
                     }
-                    _state.update { it.copy(sleepTimerRemainingMs = remaining?.coerceAtLeast(0)) }
+                    _state.update { it.copy(sleepTimerRemainingMs = remaining?.coerceAtLeast(0), sleepTimerRemainingTracks = sleepTimerRemainingTracks) }
                     delay(500)
                     continue
                 }
@@ -845,7 +861,7 @@ class MusicPlayer @Inject constructor(
                         player.pause()
                     }
                     if (player.currentMediaItem?.mediaId != _state.value.current?.mediaIdKey()) {
-                        _state.update { it.copy(sleepTimerRemainingMs = remaining?.coerceAtLeast(0)) }
+                        _state.update { it.copy(sleepTimerRemainingMs = remaining?.coerceAtLeast(0), sleepTimerRemainingTracks = sleepTimerRemainingTracks) }
                         delay(60L)
                         continue
                     }
@@ -871,7 +887,8 @@ class MusicPlayer @Inject constructor(
                         previous.positionMs == pos &&
                         previous.bufferedPositionMs == buf &&
                         previous.durationMs == dur &&
-                        previous.sleepTimerRemainingMs == sleepRemaining
+                        previous.sleepTimerRemainingMs == sleepRemaining &&
+                        previous.sleepTimerRemainingTracks == sleepTimerRemainingTracks
                     if (!unchanged) {
                         _state.update {
                             it.copy(
@@ -879,6 +896,7 @@ class MusicPlayer @Inject constructor(
                                 bufferedPositionMs = buf,
                                 durationMs = dur,
                                 sleepTimerRemainingMs = sleepRemaining,
+                                sleepTimerRemainingTracks = sleepTimerRemainingTracks,
                             )
                         }
                         // Session persistence rebuilds a queue slice every call —
@@ -1927,14 +1945,51 @@ class MusicPlayer @Inject constructor(
     }
 
     fun setSleepTimerMinutes(minutes: Int) = onMain {
-        if (minutes < 0) return@onMain
+        if (minutes <= 0) {
+            clearSleepTimer()
+            return@onMain
+        }
         sleepTimerStep = SLEEP_TIMER_MINUTES.indexOf(minutes).coerceAtLeast(0)
-        sleepTimerDeadlineMs = minutes.takeIf { it > 0 }
-            ?.let { SystemClock.elapsedRealtime() + it * 60_000L }
+        sleepTimerDeadlineMs = SystemClock.elapsedRealtime() + minutes * 60_000L
+        sleepTimerRemainingTracks = null
         _state.update {
-            it.copy(sleepTimerRemainingMs = sleepTimerDeadlineMs?.minus(SystemClock.elapsedRealtime()))
+            it.copy(
+                sleepTimerRemainingMs = sleepTimerDeadlineMs?.minus(SystemClock.elapsedRealtime()),
+                sleepTimerRemainingTracks = null,
+            )
         }
     }
+
+    fun setSleepTimerTracks(tracks: Int) = onMain {
+        if (tracks <= 0) {
+            clearSleepTimer()
+            return@onMain
+        }
+        sleepTimerDeadlineMs = null
+        sleepTimerStep = 0
+        sleepTimerRemainingTracks = tracks
+        _state.update {
+            it.copy(
+                sleepTimerRemainingMs = null,
+                sleepTimerRemainingTracks = tracks,
+            )
+        }
+    }
+
+    fun setSleepTimerAfterCurrentTrack() = setSleepTimerTracks(1)
+
+    fun clearSleepTimer() = onMain {
+        sleepTimerDeadlineMs = null
+        sleepTimerStep = 0
+        sleepTimerRemainingTracks = null
+        _state.update {
+            it.copy(
+                sleepTimerRemainingMs = null,
+                sleepTimerRemainingTracks = null,
+            )
+        }
+    }
+
     fun clearUpcoming() = onMain {
         if (isCasting) {
             _state.update { it.copy(queue = it.queue.take(it.currentIndex + 1), isEndlessQueue = false) }
@@ -1972,6 +2027,7 @@ class MusicPlayer @Inject constructor(
         unavailableSkipJob?.cancel()
         sleepTimerDeadlineMs = null
         sleepTimerStep = 0
+        sleepTimerRemainingTracks = null
         player.stop()
         player.clearMediaItems()
         preparedStreams.clear()
@@ -3593,6 +3649,7 @@ class MusicPlayer @Inject constructor(
             bitDepth = previous.bitDepth.takeIf { sameTrack },
             samplingRateKHz = previous.samplingRateKHz.takeIf { sameTrack },
             sleepTimerRemainingMs = sleepTimerDeadlineMs?.minus(SystemClock.elapsedRealtime())?.coerceAtLeast(0),
+            sleepTimerRemainingTracks = sleepTimerRemainingTracks,
             error = if (player.isPlaying) null else previous.error,
         )
         persistPlaybackSession()
@@ -3751,6 +3808,7 @@ private fun PlayableTrack.queueKey(): String = "$title|$artist".lowercase()
  * reliable reference AOSP software decoder (c2.android.flac.decoder) wins.
  * Every other mime type keeps Android's default codec order untouched.
  */
+@get:OptIn(UnstableApi::class)
 @OptIn(UnstableApi::class)
 private val accurateAudioMediaCodecSelector =
     MediaCodecSelector { mimeType, requiresSecureDecoder, requiresTunnelingDecoder ->

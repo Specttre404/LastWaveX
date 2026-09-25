@@ -83,6 +83,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ClearAll
 import androidx.compose.material.icons.filled.Close
@@ -1432,6 +1433,7 @@ private fun FullPlayer(
         }
     }
     var showTrackMenu by remember(track.videoId, track.title) { mutableStateOf(false) }
+    var showAiSheet by remember { mutableStateOf(false) }
     var artworkDragX by remember(track.videoId, track.title) { mutableFloatStateOf(0f) }
     var dismissDragY by remember(track.videoId, track.title) { mutableFloatStateOf(0f) }
     var isDismissDragging by remember { mutableStateOf(false) }
@@ -1710,23 +1712,45 @@ private fun FullPlayer(
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
-                    IconButton(
-                        onClick = { showTrackMenu = true },
-                        modifier = Modifier
-                            .align(Alignment.CenterEnd)
-                            .size(44.dp)
-                            .clip(CircleShape)
-                            .liquidGlassChrome(CircleShape, LocalLiquidGlass.current, LiquidGlassPreset.FloatingControls)
-                            .background(
-                                liquidGlassContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.40f)),
-                            ),
+                    Row(
+                        modifier = Modifier.align(Alignment.CenterEnd),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
-                        Icon(
-                            Icons.Filled.MoreVert,
-                            "Song options",
-                            modifier = Modifier.size(22.dp),
-                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.90f),
-                        )
+                        IconButton(
+                            onClick = { showAiSheet = true },
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .liquidGlassChrome(CircleShape, LocalLiquidGlass.current, LiquidGlassPreset.FloatingControls)
+                                .background(
+                                    liquidGlassContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.40f)),
+                                ),
+                        ) {
+                            Icon(
+                                Icons.Filled.AutoAwesome,
+                                "Ask LASTWAVEX AI",
+                                modifier = Modifier.size(20.dp),
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                        IconButton(
+                            onClick = { showTrackMenu = true },
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .liquidGlassChrome(CircleShape, LocalLiquidGlass.current, LiquidGlassPreset.FloatingControls)
+                                .background(
+                                    liquidGlassContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.40f)),
+                                ),
+                        ) {
+                            Icon(
+                                Icons.Filled.MoreVert,
+                                "Song options",
+                                modifier = Modifier.size(22.dp),
+                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.90f),
+                            )
+                        }
                     }
                 }
 
@@ -2278,6 +2302,16 @@ private fun FullPlayer(
             playableTrack = track,
             onDismiss = { showTrackMenu = false },
             onPlayInLastWave = { player.play(track, sourceLabel = state.sourceLabel) },
+        )
+    }
+
+    if (showAiSheet) {
+        com.lastwave.app.ui.ai.LastWaveAiSheet(
+            onDismiss = { showAiSheet = false },
+            initialContext = com.lastwave.app.data.ai.AiContextInfo(
+                currentScreen = "Player",
+                trackSummary = "'${track.title}' by '${track.artist}'",
+            ),
         )
     }
 }
