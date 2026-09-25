@@ -52,4 +52,6 @@ keystore_credentials.txt
 .wrangler/
 .gradle_home/
 .mygradle/
+google-services.json
+app/google-services.json
 
