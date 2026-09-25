@@ -1329,13 +1329,17 @@ class MusicPlayer @Inject constructor(
             player.prepare()
         }
         player.play()
+        outgoingPlayer?.play()
     }
 
     fun pause() {
         cancelPendingPlaybackResolution()
         onMain {
             if (isCasting) castPlayback?.pause()
-            if (playerDelegate.isInitialized()) player.pause()
+            if (playerDelegate.isInitialized()) {
+                player.pause()
+                outgoingPlayer?.pause()
+            }
             _state.update { it.copy(isPlaying = false, isBuffering = false) }
         }
     }
@@ -1419,7 +1423,10 @@ class MusicPlayer @Inject constructor(
     @MainThread
     private fun cancelCrossfade() {
         if (!playerDelegate.isInitialized()) return
+        val outgoing = outgoingPlayer
         outgoingPlayer = null
+        outgoing?.stop()
+        outgoing?.clearMediaItems()
         val standby = if (player === secondaryPlayer) playerDelegate.value else secondaryPlayer
         standby?.stop()
         standby?.clearMediaItems()
@@ -1430,7 +1437,10 @@ class MusicPlayer @Inject constructor(
 
     @MainThread
     private fun updateCrossfade(positionMs: Long, durationMs: Long): Boolean {
-        if (!crossfadeEnabled || bitPerfectEnabled) return false
+        if (!crossfadeEnabled || bitPerfectEnabled) {
+            if (outgoingPlayer != null) cancelCrossfade()
+            return false
+        }
         outgoingPlayer?.let { outgoing ->
             val progress = (positionMs.toFloat() / overlapDurationMs.coerceAtLeast(1L)).coerceIn(0f, 1f)
             if (progress >= 1f || outgoing.playbackState == Player.STATE_ENDED || outgoing.playerError != null) {
