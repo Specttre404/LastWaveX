@@ -192,6 +192,7 @@ class MusicPlayer @Inject constructor(
     private val downloadedTrackDao: dagger.Lazy<com.lastwave.app.data.local.db.DownloadedTrackDao>,
     private val usbDacMonitor: UsbDacMonitor,
     private val songPlayStatsRepository: dagger.Lazy<com.lastwave.app.data.repository.SongPlayStatsRepository>,
+    private val sponsorBlockRepository: com.lastwave.app.data.sponsorblock.SponsorBlockRepository,
 ) {
     private val appContext = context.applicationContext
     private val streamResolutionWakeLock by lazy {
@@ -301,6 +302,13 @@ class MusicPlayer @Inject constructor(
     private var crossfadeDurationMs = 5_000L
     @Volatile
     private var skipSilenceEnabled = false
+    @Volatile
+    private var sponsorBlockEnabled = true
+    @Volatile
+    private var skipMusicVideoIntros = true
+    private var currentSkipSegments: List<com.lastwave.app.data.sponsorblock.SkipSegment> = emptyList()
+    private var sponsorBlockJob: Job? = null
+    private var lastSkippedSegmentStartMs: Long = -1L
     private var activePlayer: ExoPlayer? = null
     private var secondaryPlayer: ExoPlayer? = null
     private var secondaryNativeEngine: NativeAudioEngine? = null
@@ -462,6 +470,23 @@ class MusicPlayer @Inject constructor(
                 val currentIndex = player.currentMediaItemIndex
                 val currentTrack = mediaItem.toPlayableTrack()
                 val currentQueue = (0 until player.mediaItemCount).map { player.getMediaItemAt(it).toPlayableTrack() }
+
+                val videoId = currentTrack.videoId
+                if (!videoId.isNullOrBlank() && sponsorBlockEnabled) {
+                    sponsorBlockJob?.cancel()
+                    sponsorBlockJob = applicationScope.launch(Dispatchers.Main.immediate) {
+                        val rawSegments = sponsorBlockRepository.getSkipSegments(videoId)
+                        currentSkipSegments = if (skipMusicVideoIntros) {
+                            rawSegments
+                        } else {
+                            rawSegments.filter { it.category != "intro" && it.category != "music_offtopic" }
+                        }
+                        lastSkippedSegmentStartMs = -1L
+                    }
+                } else {
+                    currentSkipSegments = emptyList()
+                    lastSkippedSegmentStartMs = -1L
+                }
                 _state.update {
                     it.copy(
                         current = currentTrack,
@@ -874,6 +899,17 @@ class MusicPlayer @Inject constructor(
                     val buf = player.bufferedPosition.coerceAtLeast(0)
                     val sleepRemaining = remaining?.coerceAtLeast(0)
 
+                    if (sponsorBlockEnabled && currentSkipSegments.isNotEmpty() && player.isPlaying) {
+                        val segmentToSkip = currentSkipSegments.firstOrNull { segment ->
+                            pos >= segment.startMs && pos < segment.endMs - 300L && segment.startMs != lastSkippedSegmentStartMs
+                        }
+                        if (segmentToSkip != null) {
+                            lastSkippedSegmentStartMs = segmentToSkip.startMs
+                            android.util.Log.d("MusicPlayer", "SponsorBlock: skipping ${segmentToSkip.category} [${segmentToSkip.startMs}ms -> ${segmentToSkip.endMs}ms]")
+                            player.seekTo(segmentToSkip.endMs)
+                        }
+                    }
+
                     if (updateCrossfade(pos, dur)) continue
 
                     // Stream-health sampling: effective clock drift + glitch
@@ -929,6 +965,8 @@ class MusicPlayer @Inject constructor(
                 crossfadeEnabled = settings.crossfadeEnabled
                 crossfadeDurationMs = settings.crossfadeSeconds.coerceIn(1, 12) * 1000L
                 skipSilenceEnabled = settings.skipSilenceEnabled
+                sponsorBlockEnabled = settings.sponsorBlockEnabled
+                skipMusicVideoIntros = settings.skipMusicVideoIntros
                 bitPerfectEnabled = settings.isBitPerfectEnabled
                 updateBitPerfectState()
                 if (bitPerfectEnabled && settings.isStudioMasterClarityEnabled) {

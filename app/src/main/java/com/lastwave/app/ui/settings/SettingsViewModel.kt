@@ -413,6 +413,12 @@ class SettingsViewModel @Inject constructor(
     fun setSkipSilenceEnabled(enabled: Boolean) = launchSettingsAction("update skip silence") {
         settingsPreferences.setSkipSilenceEnabled(enabled)
     }
+    fun setSponsorBlockEnabled(enabled: Boolean) = launchSettingsAction("update SponsorBlock setting") {
+        settingsPreferences.setSponsorBlockEnabled(enabled)
+    }
+    fun setSkipMusicVideoIntros(enabled: Boolean) = launchSettingsAction("update skip intros setting") {
+        settingsPreferences.setSkipMusicVideoIntros(enabled)
+    }
     fun setWavySeekbarEnabled(enabled: Boolean) = launchSettingsAction("update seekbar style") {
         settingsPreferences.setWavySeekbarEnabled(enabled)
     }

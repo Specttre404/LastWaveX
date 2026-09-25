@@ -915,7 +915,7 @@ fun SettingsScreen(
                         else -> "Max (24-bit / 192 kHz FLAC)"
                     }
 
-                    val totalAudioRows = if (misc.crossfadeEnabled) 8 else 7
+                    val totalAudioRows = if (misc.crossfadeEnabled) 9 else 8
                     SettingsGroup(rowCount = totalAudioRows) { index, position ->
                         when (index) {
                             0 -> SettingsActionCard(
@@ -1005,6 +1005,37 @@ fun SettingsScreen(
                                 )
                             } else {
                                 SettingsToggleCard(
+                                    icon = Icons.Filled.AutoAwesome,
+                                    iconContainer = MaterialTheme.colorScheme.primaryContainer,
+                                    iconTint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    title = stringResource(R.string.settings_sponsorblock),
+                                    subtitle = if (misc.sponsorBlockEnabled) {
+                                        "Auto-skipping non-music intros, outros, and commentary"
+                                    } else {
+                                        stringResource(R.string.settings_sponsorblock_sub)
+                                    },
+                                    checked = misc.sponsorBlockEnabled,
+                                    onCheckedChange = viewModel::setSponsorBlockEnabled,
+                                    position = position,
+                                )
+                            }
+                            6 -> if (misc.crossfadeEnabled) {
+                                SettingsToggleCard(
+                                    icon = Icons.Filled.AutoAwesome,
+                                    iconContainer = MaterialTheme.colorScheme.primaryContainer,
+                                    iconTint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    title = stringResource(R.string.settings_sponsorblock),
+                                    subtitle = if (misc.sponsorBlockEnabled) {
+                                        "Auto-skipping non-music intros, outros, and commentary"
+                                    } else {
+                                        stringResource(R.string.settings_sponsorblock_sub)
+                                    },
+                                    checked = misc.sponsorBlockEnabled,
+                                    onCheckedChange = viewModel::setSponsorBlockEnabled,
+                                    position = position,
+                                )
+                            } else {
+                                SettingsToggleCard(
                                     icon = Icons.Filled.Lyrics,
                                     iconContainer = MaterialTheme.colorScheme.secondaryContainer,
                                     iconTint = MaterialTheme.colorScheme.onSecondaryContainer,
@@ -1019,7 +1050,7 @@ fun SettingsScreen(
                                     position = position,
                                 )
                             }
-                            6 -> if (misc.crossfadeEnabled) {
+                            7 -> if (misc.crossfadeEnabled) {
                                 SettingsToggleCard(
                                     icon = Icons.Filled.Lyrics,
                                     iconContainer = MaterialTheme.colorScheme.secondaryContainer,
@@ -1050,7 +1081,7 @@ fun SettingsScreen(
                                     position = position,
                                 )
                             }
-                            7 -> {
+                            8 -> {
                                 val isIgnored = BatteryOptimizationHelper.isIgnoringBatteryOptimizations(context)
                                 SettingsActionCard(
                                     icon = Icons.Filled.Bolt,
