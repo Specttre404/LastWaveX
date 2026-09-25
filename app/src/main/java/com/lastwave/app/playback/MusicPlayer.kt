@@ -299,6 +299,8 @@ class MusicPlayer @Inject constructor(
     private var crossfadeEnabled = false
     @Volatile
     private var crossfadeDurationMs = 5_000L
+    @Volatile
+    private var skipSilenceEnabled = false
     private var activePlayer: ExoPlayer? = null
     private var secondaryPlayer: ExoPlayer? = null
     private var secondaryNativeEngine: NativeAudioEngine? = null
@@ -787,6 +789,7 @@ class MusicPlayer @Inject constructor(
                 )
                 setHandleAudioBecomingNoisy(true)
                 setWakeMode(C.WAKE_MODE_NETWORK)
+                skipSilenceEnabled = this@MusicPlayer.skipSilenceEnabled
                 addListener(object : Player.Listener {
                     override fun onAudioSessionIdChanged(audioSessionId: Int) {
                         effects.attach(audioSessionId)
@@ -925,6 +928,7 @@ class MusicPlayer @Inject constructor(
             settingsPreferences.settings.collect { settings ->
                 crossfadeEnabled = settings.crossfadeEnabled
                 crossfadeDurationMs = settings.crossfadeSeconds.coerceIn(1, 12) * 1000L
+                skipSilenceEnabled = settings.skipSilenceEnabled
                 bitPerfectEnabled = settings.isBitPerfectEnabled
                 updateBitPerfectState()
                 if (bitPerfectEnabled && settings.isStudioMasterClarityEnabled) {
@@ -937,6 +941,8 @@ class MusicPlayer @Inject constructor(
                 }
                 if (playerDelegate.isInitialized()) {
                     onMain {
+                        player.skipSilenceEnabled = skipSilenceEnabled
+                        secondaryPlayer?.skipSilenceEnabled = skipSilenceEnabled
                         if (!crossfadeEnabled || bitPerfectEnabled) cancelCrossfade()
                         if (bitPerfectEnabled) {
                             // Bulletproofing: tempo stretch resamples and any

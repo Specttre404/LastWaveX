@@ -58,6 +58,7 @@ import androidx.compose.material.icons.filled.Colorize
 import androidx.compose.material.icons.filled.Contrast
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.BubbleChart
@@ -914,7 +915,7 @@ fun SettingsScreen(
                         else -> "Max (24-bit / 192 kHz FLAC)"
                     }
 
-                    val totalAudioRows = if (misc.crossfadeEnabled) 7 else 6
+                    val totalAudioRows = if (misc.crossfadeEnabled) 8 else 7
                     SettingsGroup(rowCount = totalAudioRows) { index, position ->
                         when (index) {
                             0 -> SettingsActionCard(
@@ -973,6 +974,37 @@ fun SettingsScreen(
                                 )
                             } else {
                                 SettingsToggleCard(
+                                    icon = Icons.Filled.FastForward,
+                                    iconContainer = MaterialTheme.colorScheme.tertiaryContainer,
+                                    iconTint = MaterialTheme.colorScheme.onTertiaryContainer,
+                                    title = stringResource(R.string.settings_skip_silence),
+                                    subtitle = if (misc.skipSilenceEnabled) {
+                                        "Automatically skipping silent sections during playback"
+                                    } else {
+                                        stringResource(R.string.settings_skip_silence_sub)
+                                    },
+                                    checked = misc.skipSilenceEnabled,
+                                    onCheckedChange = viewModel::setSkipSilenceEnabled,
+                                    position = position,
+                                )
+                            }
+                            5 -> if (misc.crossfadeEnabled) {
+                                SettingsToggleCard(
+                                    icon = Icons.Filled.FastForward,
+                                    iconContainer = MaterialTheme.colorScheme.tertiaryContainer,
+                                    iconTint = MaterialTheme.colorScheme.onTertiaryContainer,
+                                    title = stringResource(R.string.settings_skip_silence),
+                                    subtitle = if (misc.skipSilenceEnabled) {
+                                        "Automatically skipping silent sections during playback"
+                                    } else {
+                                        stringResource(R.string.settings_skip_silence_sub)
+                                    },
+                                    checked = misc.skipSilenceEnabled,
+                                    onCheckedChange = viewModel::setSkipSilenceEnabled,
+                                    position = position,
+                                )
+                            } else {
+                                SettingsToggleCard(
                                     icon = Icons.Filled.Lyrics,
                                     iconContainer = MaterialTheme.colorScheme.secondaryContainer,
                                     iconTint = MaterialTheme.colorScheme.onSecondaryContainer,
@@ -987,7 +1019,7 @@ fun SettingsScreen(
                                     position = position,
                                 )
                             }
-                            5 -> if (misc.crossfadeEnabled) {
+                            6 -> if (misc.crossfadeEnabled) {
                                 SettingsToggleCard(
                                     icon = Icons.Filled.Lyrics,
                                     iconContainer = MaterialTheme.colorScheme.secondaryContainer,
@@ -1018,7 +1050,7 @@ fun SettingsScreen(
                                     position = position,
                                 )
                             }
-                            6 -> {
+                            7 -> {
                                 val isIgnored = BatteryOptimizationHelper.isIgnoringBatteryOptimizations(context)
                                 SettingsActionCard(
                                     icon = Icons.Filled.Bolt,

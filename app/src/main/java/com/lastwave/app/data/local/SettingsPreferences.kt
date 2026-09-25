@@ -82,6 +82,8 @@ data class MiscSettings(
     val crossfadeEnabled: Boolean = false,
     /** Crossfade length in seconds; kept within the native settings slider range. */
     val crossfadeSeconds: Int = 4,
+    /** Automatically skip silent periods during audio playback. */
+    val skipSilenceEnabled: Boolean = false,
     /** When true (default), uses the multi-layer dynamic wavy seekbar.
      *  When false, uses the classic standard progress slider in the player tab. */
     val wavySeekbarEnabled: Boolean = true,
@@ -184,6 +186,7 @@ class SettingsPreferences @Inject constructor(
         val LYRICS_ANIMATION = stringPreferencesKey("lw_lyrics_animation")
         val CROSSFADE_ENABLED = booleanPreferencesKey("lw_crossfade_enabled")
         val CROSSFADE_SECONDS = intPreferencesKey("lw_crossfade_seconds")
+        val SKIP_SILENCE_ENABLED = booleanPreferencesKey("lw_skip_silence_enabled")
         val WAVY_SEEKBAR_ENABLED = booleanPreferencesKey("lw_wavy_seekbar_enabled")
         val DOWNLOAD_LYRICS = booleanPreferencesKey("lw_download_lyrics")
         val APP_LANGUAGE = stringPreferencesKey("lw_app_language")
@@ -212,6 +215,7 @@ class SettingsPreferences @Inject constructor(
                 lyricsAnimation = LyricsAnimation.fromId(p.readSafely(Keys.LYRICS_ANIMATION)),
                 crossfadeEnabled = p.readSafely(Keys.CROSSFADE_ENABLED) ?: false,
                 crossfadeSeconds = (p.readSafely(Keys.CROSSFADE_SECONDS) ?: 4).coerceIn(1, 12),
+                skipSilenceEnabled = p.readSafely(Keys.SKIP_SILENCE_ENABLED) ?: false,
                 wavySeekbarEnabled = p.readSafely(Keys.WAVY_SEEKBAR_ENABLED) ?: true,
                 downloadLyrics = p.readSafely(Keys.DOWNLOAD_LYRICS) ?: true,
                 appLanguageTag = AppLanguage.fromTag(p.readSafely(Keys.APP_LANGUAGE)).tag,
@@ -285,6 +289,10 @@ class SettingsPreferences @Inject constructor(
 
     suspend fun setCrossfadeSeconds(seconds: Int) {
         dataStore.edit { it[Keys.CROSSFADE_SECONDS] = seconds.coerceIn(1, 12) }
+    }
+
+    suspend fun setSkipSilenceEnabled(enabled: Boolean) {
+        dataStore.edit { it[Keys.SKIP_SILENCE_ENABLED] = enabled }
     }
 
     suspend fun setWavySeekbarEnabled(enabled: Boolean) {
