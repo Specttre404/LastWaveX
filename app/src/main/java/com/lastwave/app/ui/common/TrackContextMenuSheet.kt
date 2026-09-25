@@ -80,9 +80,11 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import java.util.Locale
 import com.lastwave.app.ui.theme.LocalLiquidGlass
 import com.lastwave.app.ui.theme.LocalLiquidGlassOverlayBackdrop
 import com.lastwave.app.ui.theme.LiquidGlassPreset
@@ -268,6 +270,7 @@ fun TrackContextMenuSheet(
     val musicPlayer = LocalMusicPlayer.current
     val addToPlaylist = LocalAddToPlaylist.current
     var showDetailsSheet by remember { mutableStateOf(false) }
+    var showStatsForNerdsDialog by remember { mutableStateOf(false) }
     var showTimerDialog by remember { mutableStateOf(false) }
     var resolvedGenre by remember(target) { mutableStateOf<String?>(null) }
     var resolvingGenre by remember(target) { mutableStateOf(false) }
@@ -311,6 +314,13 @@ fun TrackContextMenuSheet(
             },
         )
         return
+    }
+
+    if (showStatsForNerdsDialog) {
+        StatsForNerdsDialog(
+            musicPlayer = musicPlayer,
+            onDismiss = { showStatsForNerdsDialog = false },
+        )
     }
 
     if (showTimerDialog) {
@@ -459,6 +469,11 @@ fun TrackContextMenuSheet(
                     }
                     if (capabilities.showCopyActions) {
                         add { pos -> MenuActionRow(Icons.Filled.ContentCopy, "Copy Song", position = pos) { clipboard.setText(AnnotatedString("${t.name} \u2014 ${t.artist}")); onDismiss() } }
+                    }
+                    add { pos ->
+                        MenuActionRow(Icons.Filled.Info, "Stats for Nerds", position = pos) {
+                            showStatsForNerdsDialog = true
+                        }
                     }
                     add { pos ->
                         MenuActionRow(Icons.Filled.Info, "Details & Audio Specs", position = pos) {
@@ -963,4 +978,176 @@ private fun SleepTimerDialog(
             }
         },
     )
+}
+
+@Composable
+private fun StatsForNerdsDialog(
+    musicPlayer: MusicPlayer,
+    onDismiss: () -> Unit,
+) {
+    val playerState by musicPlayer.state.collectAsStateWithLifecycle()
+    val signalPath by musicPlayer.signalPath.collectAsStateWithLifecycle()
+
+    val codec = playerState.audioCodec ?: "Opus / AAC (Auto)"
+    val bitrate = playerState.bitrateKbps?.let { "$it kbps" } ?: "Variable / Stream"
+    val sampleRate = playerState.samplingRateKHz?.let {
+        if (it % 1.0 == 0.0) "${it.toInt()} kHz" else "$it kHz"
+    } ?: "44.1 kHz"
+    val bitDepth = playerState.bitDepth?.let { "$it-bit" } ?: "16-bit"
+    val losslessText = if (playerState.isLossless) "$bitDepth Lossless" else "$bitDepth Lossy"
+    val outputDevice = signalPath.dacName ?: "Built-in Speaker / System Default"
+    val dacStatus = when {
+        signalPath.bitPerfect -> "Bit-Perfect Direct Passthrough (Bit-Exact)"
+        signalPath.dacName != null -> "External USB/Hardware DAC"
+        else -> "Standard AudioTrack Mixer (${if (signalPath.platformRateHz > 0) "${signalPath.platformRateHz / 1000.0} kHz" else "Shared"})"
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Icon(
+                Icons.Filled.Info,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+            )
+        },
+        title = {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "Stats for Nerds",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    text = "Live Audio Stream Specs",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                playerState.current?.let { track ->
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                        ) {
+                            Text(
+                                text = track.title,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            Text(
+                                text = track.artist,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
+                }
+
+                StatItemRow(label = "Audio Codec", value = codec)
+                StatItemRow(label = "Bitrate", value = bitrate)
+                StatItemRow(label = "Sample Rate", value = sampleRate)
+                StatItemRow(
+                    label = "Bit Depth & Lossless",
+                    value = losslessText,
+                    highlight = playerState.isLossless,
+                )
+                StatItemRow(label = "Output Device", value = outputDevice)
+                StatItemRow(
+                    label = "DAC / Routing Status",
+                    value = dacStatus,
+                    highlight = signalPath.bitPerfect,
+                )
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                StatItemRow(label = "Playback Source", value = playerState.sourceLabel)
+                if (signalPath.glitchCount > 0) {
+                    StatItemRow(
+                        label = "Buffer Underruns",
+                        value = "${signalPath.glitchCount} glitches",
+                        isError = true,
+                    )
+                }
+                signalPath.driftPpm?.let { drift ->
+                    StatItemRow(
+                        label = "Clock Drift",
+                        value = String.format(Locale.ROOT, "%+.1f PPM", drift),
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close")
+            }
+        },
+    )
+}
+
+@Composable
+private fun StatItemRow(
+    label: String,
+    value: String,
+    highlight: Boolean = false,
+    isError: Boolean = false,
+) {
+    Surface(
+        shape = RoundedCornerShape(10.dp),
+        color = when {
+            isError -> MaterialTheme.colorScheme.errorContainer
+            highlight -> MaterialTheme.colorScheme.primaryContainer
+            else -> MaterialTheme.colorScheme.surfaceContainerHigh
+        },
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodySmall,
+                color = when {
+                    isError -> MaterialTheme.colorScheme.onErrorContainer
+                    highlight -> MaterialTheme.colorScheme.onPrimaryContainer
+                    else -> MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                modifier = Modifier.weight(1f),
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
+                fontWeight = FontWeight.SemiBold,
+                color = when {
+                    isError -> MaterialTheme.colorScheme.onErrorContainer
+                    highlight -> MaterialTheme.colorScheme.onPrimaryContainer
+                    else -> MaterialTheme.colorScheme.onSurface
+                },
+            )
+        }
+    }
 }
